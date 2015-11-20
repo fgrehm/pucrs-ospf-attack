@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
   }
 
   int sock_fd = 0, ret_value = 0;
-  unsigned char buffer[BUFFER_LEN], dummy_buffer[50];
+  unsigned char buffer[BUFFER_LEN];
   struct sockaddr_ll destAddr;
 
   // Set up mac / IPv4 addresses for the machines that will receive the packets
@@ -59,8 +59,6 @@ int main(int argc, char *argv[]) {
   memcpy(&(destAddr.sll_addr), dest_mac, MAC_ADDR_LEN);
 
   int packet_len = build_hello(buffer, local_mac, local_ip, dest_mac, dest_ip);
-
-  memcpy((buffer+packet_len), dummy_buffer, 50);
 
   if((ret_value = sendto(sock_fd, buffer, 64, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
     printf("ERROR! sendto() \n");
