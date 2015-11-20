@@ -15,6 +15,7 @@ int build_hello(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char
   memcpy(eth_header->ether_shost, local_mac, MAC_ADDR_LEN);
   eth_header->ether_type = htons(0X800);
 
+  // IP header
   struct ip *ip_header;
   ip_header = (struct ip *) &buffer[sizeof(struct ether_header)];
   ip_header->ip_hl = sizeof(struct ip) >> 2;
@@ -24,7 +25,7 @@ int build_hello(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char
   ip_header->ip_id = htons((int)(rand()/(((double)RAND_MAX + 1)/14095)));
   ip_header->ip_off = 0;
   ip_header->ip_ttl = 64;
-  // TODO: PROTOCOLO: ip_header->ip_p = IPPROTO_TCP;
+  ip_header->ip_p = PROTO_OSPF;
   // TODO: CHECKSUM:  ip_header->ip_sum
   ip_header->ip_src.s_addr = inet_addr(local_ip);
   ip_header->ip_dst.s_addr = inet_addr(dest_ip);
