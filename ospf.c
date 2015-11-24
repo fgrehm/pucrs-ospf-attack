@@ -6,6 +6,8 @@
 #include <netinet/ip.h>
 
 #include "ospf.h"
+#include "ospf_attack.h"
+#include "checksum.h"
 
 
 //?pedro                                               //verificar se tipo da variável é adequada
@@ -26,9 +28,8 @@ int build_link_state_summary_header_ospf(unsigned char buffer[BUFFER_LEN],
   lss_header_ospf->lss_lsid = inet_addr(local_ip);                          /* Link State Identifier */
   lss_header_ospf->lss_rid = inet_addr(local_ip);                           /* Advertising Router Identifier ?pedro I think would was THE PHANTOM ROUTER*/
   lss_header_ospf->lss_seq = LSS_SEQ_NUM;                                   /* Link State Adv. Sequence #   */
-    // TODO: CHECKSUM: lss_header_ospf->lss_cksum;  /* ?pedro Fletcher Checksum of LSA */
+  lss_header_ospf->lss_cksum;  /* ?pedro Fletcher Checksum of LSA */
     // TODO: LENGTH: lss_header_ospf->lss_len;    /* Length of Advertisement ?pedro I don't know, because in wireshark a header has 3 LSS and values not equal*/
-};
 
   return sizeof(struct ospf_lss);
 }
@@ -72,16 +73,40 @@ int build_database_description_header_ospf(unsigned char buffer[BUFFER_LEN],
   return sizeof(struct ospf_dd);
 }
 
+
+//?pedro                                    //verificar se tipo da variável é adequada
+int build_basic_header_ospf(unsigned char buffer[BUFFER_LEN], 
+                                    char *local_ip,
+                                    char *dest_ip,
+                                    //int size_eth_ip,
+                                    unsigned char type_of_service) {
+
+  // OSPF header
+  struct ospf *basic_header_ospf;
+  basic_header_ospf = (struct ospf *) &buffer[sizeof(struct ether_header) + sizeof(struct ip)];
+  basic_header_ospf->ospf_version = OSPF_VERSION;                           /* Version Number   */
+  basic_header_ospf->ospf_type = 0x01;                           /* Packet Type      */
+  basic_header_ospf->ospf_len = htons(sizeof(struct ospf) + sizeof(struct ospf_hello));   /* Packet Length    */
+  basic_header_ospf->ospf_rid = inet_addr(local_ip);                        /* Router Identifier    */
+  basic_header_ospf->ospf_aid = inet_addr("0.0.0.0");                       /* Area Identifier    */
+  // TODO: CHECKSUM:  
+  basic_header_ospf->ospf_cksum = 0X0000;                                   /* Check Sum      */
+  basic_header_ospf->ospf_authtype = AU_NONE;                               /* Authentication Type    */
+  basic_header_ospf->ospf_auth[0] = AUTH_NONE;                              /* Authentication Field */
+  //basic_header_ospf->ospf_data[1];    I cut this atribute ?pedro
+
+  return sizeof(struct ospf);
+}
+
+
 //?pedro                                     //verificar se tipo da variável é adequada
 int build_hello_header_ospf(unsigned char buffer[BUFFER_LEN], 
                                     char *local_ip, 
-                                    char *dest_ip, 
-                                    int size_eth_ip_ospfBasic, 
-                                    int tipe_of_service) {
+                                    char *dest_ip) {
 
   // OSPF hello header
   struct ospf_hello *hello_header_ospf;
-  hello_header_ospf = (struct ospf_hello *) &buffer[size_eth_ip_ospfBasic];
+  hello_header_ospf = (struct ospf_hello *) &buffer[sizeof(struct ether_header) + sizeof(struct ip) + sizeof(struct ospf)];
   hello_header_ospf->oh_netmask = inet_addr("255.255.255.0");               /* Network Mask     */
   hello_header_ospf->oh_hintv = HELLO_INTERVAL;                             /* Hello Interval (seconds) */
   /*OPTIONS DON'T OK*/
@@ -91,29 +116,8 @@ int build_hello_header_ospf(unsigned char buffer[BUFFER_LEN],
   hello_header_ospf->oh_drid = inet_addr(local_ip);                         /* Designated Router ID   */
   hello_header_ospf->oh_brid = inet_addr("0.0.0.0");                        /* Backup Designated Router ID  */
   // TODO: NEIGHBOR LIST: hello_header_ospf->oh_neighbor[1];                                        /* Living Neighbors   */
+  int swap; 
+  swap = build_basic_header_ospf(buffer, local_ip, dest_ip, 0X01); /* size_eth_ip, */ 
   
-  return sizeof(struct ospf_hello);
-}
-
-//?pedro                                    //verificar se tipo da variável é adequada
-int build_basic_header_ospf(unsigned char buffer[BUFFER_LEN], 
-                                    char *local_ip,
-                                    char *dest_ip,
-                                    int size_eth_ip,
-                                    int tipe_of_service) {
-
-  // OSPF header
-  struct ospf *basic_header_ospf;
-  basic_header_ospf = (struct ospf *) &buffer[size_eth_ip];
-  basic_header_ospf->ospf_version = OSPF_VERSION;               /* Version Number   */
-  basic_header_ospf->ospf_type = tipe_of_service;               /* Packet Type      */
-  //TODO: OSPF_LENTH: basic_header_ospf->ospf_len = ; /* Packet Length    */
-  basic_header_ospf->ospf_rid = inet_addr(local_ip);            /* Router Identifier    */
-  basic_header_ospf->ospf_aid = inet_addr("0.0.0.0");           /* Area Identifier    */
-  // TODO: CHECKSUM:  basic_header_ospf->ospf_cksum = ;         /* Check Sum      */
-  basic_header_ospf->ospf_authtype = ;                          /* Authentication Type    */
-  ospf_auth[AUTHLEN] = AU_NONE;                                 /* Authentication Field */
-  basic_header_ospf->ospf_data[1];
-
-  return sizeof(struct ospf);
+  return sizeof(struct ospf_hello) + swap;
 }

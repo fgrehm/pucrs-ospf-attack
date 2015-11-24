@@ -1,3 +1,5 @@
+#define	AUTHLEN		8		/* 64-bit Password		*/
+
 /* OSPF packet format */
 
 struct ospf {
@@ -9,11 +11,13 @@ struct ospf {
 	unsigned short	ospf_cksum;	/* Check Sum			*/
 	unsigned short	ospf_authtype;	/* Authentication Type		*/
 	unsigned char	ospf_auth[AUTHLEN]; /* Authentication Field	*/
-	unsigned char	ospf_data[1];
+	//unsigned char	ospf_data[1];
 };
+
 
 #define OSPF_VERSION 2		/**/
 #define	MINHDRLEN	24		/* OSPF base header length	*/
+#define AUTH_NONE	0X0000000000000000 /* if don't authentication */ 
 
 /* OSPF Packet Types */
 
@@ -38,7 +42,7 @@ struct	ospf_hello {
 	unsigned long	oh_rdintv;	/* Seconds Before Declare Dead	*/
 	unsigned long	oh_drid;	/* Designated Router ID		*/
 	unsigned long	oh_brid;	/* Backup Designated Router ID	*/
-	unsigned long	oh_neighbor[1];	/* Living Neighbors		*/
+	//unsigned long	oh_neighbor[1];	/* Living Neighbors		*/
 };
 
 #define	HELLO_INTERVAL	10				/* 10 seconts defined */
@@ -54,7 +58,7 @@ struct	ospf_dd {
 	unsigned char	dd_opts;	/* Options			*/
 	unsigned char	dd_control;	/* Control Bits	(DDC_* below)	*/
 	unsigned long	dd_seq;		/* Sequence Number		*/
-	struct ospf_lss	dd_lss[1];	/* Link State Advertisements	*/
+//	struct ospf_lss	dd_lss[1];	/* Link State Advertisements	*/
 };
 
 #define	MINDDLEN	(MINHDRLEN + 8)
@@ -178,10 +182,10 @@ struct ospf_lsa {
 #define	RAT_VIRTUAL	4		/* Virtual Link			*/
 
 /* Network Links Advertisement */
-
+//typedef	unsigned long IPaddr;	/*  internet address			*/
 struct	ospf_na {
-	IPaddr		na_mask;	/* Network Mask			*/
-	unsigned long	na_rid[1];	/* IDs of All Attached Routers	*/
+	unsigned long na_mask;	/* Network Mask			*/
+	unsigned long na_rid[1];	/* IDs of All Attached Routers	*/
 };
 
 /* Link State Update Packet Format */
