@@ -113,14 +113,12 @@ int build_hello_header_ospf(unsigned char buffer[BUFFER_LEN],
   /*OPTIONS DON'T OK*/
   hello_header_ospf->oh_opts = HELLO_OPTIONS;                               /* Options      */
   hello_header_ospf->oh_prio = HELLO_PRIORITY;                              /* Sender's Router Priority */
-  hello_header_ospf->oh_rdintv = HELLO_DEAD_INTERVAL;                       /* Seconds Before Declare Dead  */
-  hello_header_ospf->oh_drid = inet_addr(local_ip);                         /* Designated Router ID   */
+  hello_header_ospf->oh_rdintv = inet_addr("0.0.0.40");                       /* Seconds Before Declare Dead  */
+  hello_header_ospf->oh_drid = inet_addr("192.168.3.1");                         /* Designated Router ID   */
   hello_header_ospf->oh_brid = inet_addr("0.0.0.0");                        /* Backup Designated Router ID  */
-  // TODO: NEIGHBOR LIST: hello_header_ospf->oh_neighbor[1];                                        /* Living Neighbors   */
+  hello_header_ospf->oh_neighbor = inet_addr("192.168.3.1");                                        /* Living Neighbors   */
   int swap; 
   swap = build_basic_header_ospf(buffer, local_ip, dest_ip, 0X01); 			/* size_eth_ip, */ 
-
-  //ip_header->ip_sum = in_cksum((unsigned short*)ip_header, sizeof(struct ip));  
 
   return sizeof(struct ospf_hello) + swap;
 }

@@ -42,13 +42,13 @@ struct	ospf_hello {
 	__u32	oh_rdintv;	/* Seconds Before Declare Dead	*/
 	__u32	oh_drid;	/* Designated Router ID		*/
 	__u32	oh_brid;	/* Backup Designated Router ID	*/
-	//__u32	oh_neighbor[1];	/* Living Neighbors		*/
+	__u32	oh_neighbor;	/* Living Neighbors		*/
 };
 
 #define	HELLO_INTERVAL	0x0a00				/* 10 seconts defined */
 #define	HELLO_OPTIONS	0X12			/* Take default options from wireshark message */
 #define	HELLO_PRIORITY	1				/* Take default priority from wireshark message */
-#define	HELLO_DEAD_INTERVAL	0X40		/* Take default dead interval from wireshark message */
+#define	HELLO_DEAD_INTERVAL	0X28000000		/* Take default dead interval from wireshark message */
 #define	MINHELLOLEN	(MINHDRLEN + 20)
 
 /* OSPF Database Description Packet */
