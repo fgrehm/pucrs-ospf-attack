@@ -45,7 +45,7 @@ struct	ospf_hello {
 	//__u32	oh_neighbor[1];	/* Living Neighbors		*/
 };
 
-#define	HELLO_INTERVAL	10				/* 10 seconts defined */
+#define	HELLO_INTERVAL	0x0a00				/* 10 seconts defined */
 #define	HELLO_OPTIONS	0X12			/* Take default options from wireshark message */
 #define	HELLO_PRIORITY	1				/* Take default priority from wireshark message */
 #define	HELLO_DEAD_INTERVAL	0X40		/* Take default dead interval from wireshark message */

@@ -90,11 +90,12 @@ int build_basic_header_ospf(unsigned char buffer[BUFFER_LEN],
   basic_header_ospf->ospf_rid = inet_addr(local_ip);                        /* Router Identifier    */
   basic_header_ospf->ospf_aid = inet_addr("0.0.0.0");                       /* Area Identifier    */
   // TODO: CHECKSUM:  
-  basic_header_ospf->ospf_cksum = 0X0000;                                   /* Check Sum      */
+  basic_header_ospf->ospf_cksum = 0x0000;                                   /* Check Sum      */
   basic_header_ospf->ospf_authtype = AU_NONE;                               /* Authentication Type    */
   basic_header_ospf->ospf_auth = 0;                              /* Authentication Field */
-  //basic_header_ospf->ospf_data[1];    I cut this atribute ?pedro
 
+  basic_header_ospf->ospf_cksum = in_cksum(buffer + sizeof(struct ether_header) + sizeof(struct ip), sizeof(struct ospf) + sizeof(struct ospf_hello));  
+  
   return sizeof(struct ospf);
 }
 
@@ -117,7 +118,9 @@ int build_hello_header_ospf(unsigned char buffer[BUFFER_LEN],
   hello_header_ospf->oh_brid = inet_addr("0.0.0.0");                        /* Backup Designated Router ID  */
   // TODO: NEIGHBOR LIST: hello_header_ospf->oh_neighbor[1];                                        /* Living Neighbors   */
   int swap; 
-  swap = build_basic_header_ospf(buffer, local_ip, dest_ip, 0X01); /* size_eth_ip, */ 
-  
+  swap = build_basic_header_ospf(buffer, local_ip, dest_ip, 0X01); 			/* size_eth_ip, */ 
+
+  //ip_header->ip_sum = in_cksum((unsigned short*)ip_header, sizeof(struct ip));  
+
   return sizeof(struct ospf_hello) + swap;
 }
