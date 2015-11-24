@@ -3,15 +3,15 @@
 /* OSPF packet format */
 
 struct ospf {
-	unsigned char	ospf_version;	/* Version Number		*/
-	unsigned char	ospf_type;	/* Packet Type			*/
-	unsigned short	ospf_len;	/* Packet Length		*/
-	unsigned long	ospf_rid;	/* Router Identifier		*/
-	unsigned long	ospf_aid;	/* Area Identifier		*/
-	unsigned short	ospf_cksum;	/* Check Sum			*/
-	unsigned short	ospf_authtype;	/* Authentication Type		*/
-	unsigned char	ospf_auth[AUTHLEN]; /* Authentication Field	*/
-	//unsigned char	ospf_data[1];
+	__u8	ospf_version;	/* Version Number		*/
+	__u8	ospf_type;	/* Packet Type			*/
+	__u16	ospf_len;	/* Packet Length		*/
+	__u32	ospf_rid;	/* Router Identifier		*/
+	__u32	ospf_aid;	/* Area Identifier		*/
+	__u16	ospf_cksum;	/* Check Sum			*/
+	__u16	ospf_authtype;	/* Authentication Type		*/
+	__u64	ospf_auth; /* Authentication Field	*/
+	//__u8	ospf_data[1];
 };
 
 
@@ -35,14 +35,14 @@ struct ospf {
 /* OSPF Hello Packet */
 
 struct	ospf_hello {
-	unsigned long	oh_netmask;	/* Network Mask			*/
-	unsigned short	oh_hintv;	/* Hello Interval (seconds)	*/
-	unsigned char	oh_opts;	/* Options			*/
-	unsigned char	oh_prio;	/* Sender's Router Priority	*/
-	unsigned long	oh_rdintv;	/* Seconds Before Declare Dead	*/
-	unsigned long	oh_drid;	/* Designated Router ID		*/
-	unsigned long	oh_brid;	/* Backup Designated Router ID	*/
-	//unsigned long	oh_neighbor[1];	/* Living Neighbors		*/
+	__u32	oh_netmask;	/* Network Mask			*/
+	__u16	oh_hintv;	/* Hello Interval (seconds)	*/
+	__u8	oh_opts;	/* Options			*/
+	__u8	oh_prio;	/* Sender's Router Priority	*/
+	__u32	oh_rdintv;	/* Seconds Before Declare Dead	*/
+	__u32	oh_drid;	/* Designated Router ID		*/
+	__u32	oh_brid;	/* Backup Designated Router ID	*/
+	//__u32	oh_neighbor[1];	/* Living Neighbors		*/
 };
 
 #define	HELLO_INTERVAL	10				/* 10 seconts defined */
@@ -54,10 +54,10 @@ struct	ospf_hello {
 /* OSPF Database Description Packet */
 
 struct	ospf_dd {
-	unsigned short	dd_mbz;		/* Must Be Zero			*/
-	unsigned char	dd_opts;	/* Options			*/
-	unsigned char	dd_control;	/* Control Bits	(DDC_* below)	*/
-	unsigned long	dd_seq;		/* Sequence Number		*/
+	__u16	dd_mbz;		/* Must Be Zero			*/
+	__u8	dd_opts;	/* Options			*/
+	__u8	dd_control;	/* Control Bits	(DDC_* below)	*/
+	__u32	dd_seq;		/* Sequence Number		*/
 //	struct ospf_lss	dd_lss[1];	/* Link State Advertisements	*/
 };
 
@@ -74,9 +74,9 @@ struct	ospf_dd {
 /* OSPF Link State Request Packet */
 
 struct	ospf_lsr {
-	unsigned long	lsr_type;	/* Link State Type		*/
-	unsigned long	lsr_lsid;	/* Link State Identifier	*/
-	unsigned long	lsr_rid;	/* Advertising Router		*/
+	__u32	lsr_type;	/* Link State Type		*/
+	__u32	lsr_lsid;	/* Link State Identifier	*/
+	__u32	lsr_rid;	/* Advertising Router		*/
 };
 
 #define LSR_TYPE 	0X00000001	/* Take default type from wireshark message */
@@ -85,14 +85,14 @@ struct	ospf_lsr {
 /* OSPF Link State Summary */
 
 struct	ospf_lss {
-	unsigned short	lss_age;	/* Time (secs) Since Originated	*/
-	unsigned char	lss_opts;	/* Options Supported		*/
-	unsigned char	lss_type;	/* LST_* below			*/
-	unsigned long	lss_lsid;	/* Link State Identifier	*/
-	unsigned long	lss_rid;	/* Advertising Router Identifier*/
-	unsigned long	lss_seq;	/* Link State Adv. Sequence #	*/
-	unsigned short	lss_cksum;	/* Fletcher Checksum of LSA	*/
-	unsigned short	lss_len;	/* Length of Advertisement	*/
+	__u16	lss_age;	/* Time (secs) Since Originated	*/
+	__u8	lss_opts;	/* Options Supported		*/
+	__u8	lss_type;	/* LST_* below			*/
+	__u32	lss_lsid;	/* Link State Identifier	*/
+	__u32	lss_rid;	/* Advertising Router Identifier*/
+	__u32	lss_seq;	/* Link State Adv. Sequence #	*/
+	__u16	lss_cksum;	/* Fletcher Checksum of LSA	*/
+	__u16	lss_len;	/* Length of Advertisement	*/
 };
 
 #define	LSSHDRLEN	20
@@ -126,9 +126,9 @@ struct	ospf_lss {
 /* LSS Type of Service Entry */
 //
 //	struct	tosent {
-//		unsigned char	tos_tos;	/* IP Type of Service		*/
-//		unsigned char	tos_mbz;	/* Must Be Zero			*/
-//		unsigned short	tos_metric;	/* Metric for This TOS		*/
+//		__u8	tos_tos;	/* IP Type of Service		*/
+//		__u8	tos_mbz;	/* Must Be Zero			*/
+//		__u16	tos_metric;	/* Metric for This TOS		*/
 //	};
 
 /* OSPF Link State Advertisement */
@@ -156,19 +156,19 @@ struct ospf_lsa {
 /* Router Links Advertisement */
 //
 //	struct	ospf_ra {
-//		unsigned char	ra_opts;	/* RAO_* Below			*/
-//		unsigned char	ra_mbz;		/* Must Be Zero			*/
-//		unsigned short	ra_nlinks;	/* # of Links This Advertisement*/
-//		unsigned char	ra_data[1];	/* nlinks rlink structs		*/
+//		__u8	ra_opts;	/* RAO_* Below			*/
+//		__u8	ra_mbz;		/* Must Be Zero			*/
+//		__u16	ra_nlinks;	/* # of Links This Advertisement*/
+//		__u8	ra_data[1];	/* nlinks rlink structs		*/
 //	};
 //
 //	struct ospf_rl {
-//		unsigned long	rl_lid;		/* Link ID			*/
-//		unsigned long	rl_data;	/* Link Data			*/
-//		unsigned char	rl_type;	/* Link Type (RAT_* Below)	*/
-//		unsigned char	rl_ntos;	/* # of Types-of-Service Entries*/
-//		unsigned short	rl_metric;	/* TOS 0 Metric			*/
-//		unsigned long	rl_tosent[1];	/* TOS Entries ra_ntos Times	*/
+//		__u32	rl_lid;		/* Link ID			*/
+//		__u32	rl_data;	/* Link Data			*/
+//		__u8	rl_type;	/* Link Type (RAT_* Below)	*/
+//		__u8	rl_ntos;	/* # of Types-of-Service Entries*/
+//		__u16	rl_metric;	/* TOS 0 Metric			*/
+//		__u32	rl_tosent[1];	/* TOS Entries ra_ntos Times	*/
 //	};
 
 #define	MINRLLEN	12
@@ -182,16 +182,16 @@ struct ospf_lsa {
 #define	RAT_VIRTUAL	4		/* Virtual Link			*/
 
 /* Network Links Advertisement */
-//typedef	unsigned long IPaddr;	/*  internet address			*/
+//typedef	__u32 IPaddr;	/*  internet address			*/
 struct	ospf_na {
-	unsigned long na_mask;	/* Network Mask			*/
-	unsigned long na_rid[1];	/* IDs of All Attached Routers	*/
+	__u32 na_mask;	/* Network Mask			*/
+	__u32 na_rid[1];	/* IDs of All Attached Routers	*/
 };
 
 /* Link State Update Packet Format */
 
 struct	ospf_lsu {
-	unsigned long	lsu_nads;	/* # Advertisments This Packet	*/
+	__u32	lsu_nads;	/* # Advertisments This Packet	*/
 	char		lsu_data[1];	/* 1 or more struct ospf_lsa's	*/
 };
 

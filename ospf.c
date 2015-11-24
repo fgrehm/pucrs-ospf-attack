@@ -92,7 +92,7 @@ int build_basic_header_ospf(unsigned char buffer[BUFFER_LEN],
   // TODO: CHECKSUM:  
   basic_header_ospf->ospf_cksum = 0X0000;                                   /* Check Sum      */
   basic_header_ospf->ospf_authtype = AU_NONE;                               /* Authentication Type    */
-  basic_header_ospf->ospf_auth[0] = AUTH_NONE;                              /* Authentication Field */
+  basic_header_ospf->ospf_auth = 0;                              /* Authentication Field */
   //basic_header_ospf->ospf_data[1];    I cut this atribute ?pedro
 
   return sizeof(struct ospf);
