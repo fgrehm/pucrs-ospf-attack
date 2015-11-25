@@ -95,19 +95,20 @@ struct	ospf_lss {
 	__u16	lss_len;	/* Length of Advertisement	*/
 };
 
+#define LSS_LENGTH	0x2000
 #define	LSSHDRLEN	20
-#define LSS_AGE 	144			/* Take default age from wireshark message */
-#define LSS_OPTIONS 0X22		/* Take default age from wireshark message */
-#define LSST_ROUTE	0X01		/* Link to a router :: Take default LS Type from wireshark message */
-#define LSST_NET	0X02		/* Link to a network */
-#define LSST_SUM_IP	0X03		/* When area are used, summary information generaled about a network */
-#define LSST_SUMLSA	0X04		/* When area are used, summary information about a link to an AS boundary router*/
-#define LSST_AS_EXT	0X05		/* An external link outside the autonomous system */
-#define LSS_SEQ_NUM	0x80000001	/* Take default sequence number from wireshark message */
+#define LSS_AGE 	0x0500			/* Take default age from wireshark message */
+#define LSS_OPTIONS 0X22			/* Take default age from wireshark message */
+#define LSST_ROUTE	0X02			/* Link to a router :: Take default LS Type from wireshark message */
+#define LSST_NET	0X02			/* Link to a network */
+#define LSST_SUM_IP	0X03			/* When area are used, summary information generaled about a network */
+#define LSST_SUMLSA	0X04			/* When area are used, summary information about a link to an AS boundary router*/
+#define LSST_AS_EXT	0X05			/* An external link outside the autonomous system */
+#define LSS_SEQ_NUM	0x80000001		/* Take default sequence number from wireshark message */
 
 /* Link State Advertisement Types */
 
-#define	LST_RLINK	1		/* Router Link			*/
+#define	LST_RLINK	1				/* Router Link			*/
 #define	LST_NLINK	2		/* Network Link			*/
 #define	LST_SLINK	3		/* IP Network Summary Link	*/
 #define	LST_BRSLINK	4		/* AS Border Router Summary	*/
@@ -185,14 +186,14 @@ struct ospf_lsa {
 //typedef	__u32 IPaddr;	/*  internet address			*/
 struct	ospf_na {
 	__u32 na_mask;	/* Network Mask			*/
-	__u32 na_rid[1];	/* IDs of All Attached Routers	*/
+	__u32 na_rid[2];	/* IDs of All Attached Routers	*/
 };
 
 /* Link State Update Packet Format */
 
 struct	ospf_lsu {
 	__u32	lsu_nads;	/* # Advertisments This Packet	*/
-	char		lsu_data[1];	/* 1 or more struct ospf_lsa's	*/
+	//char		lsu_data[1];	/* 1 or more struct ospf_lsa's	*/
 };
 
 #define	MINLSULEN	(MINHDRLEN + 4)	/* Base LSU Length		*/
