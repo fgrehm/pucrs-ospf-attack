@@ -197,3 +197,8 @@ struct	ospf_lsu {
 
 #define	MINLSULEN	(MINHDRLEN + 4)	/* Base LSU Length		*/
 
+struct ospf_lls {
+  __u32 data[3];
+};
+
+
