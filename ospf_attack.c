@@ -14,11 +14,11 @@ int build(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *loca
   char *dest_ip;
   int packet_len, swap;
     if(packet_type - 0x01) {
-    dest_ip = "192.168.3.1";  
+    dest_ip = "192.168.3.1";
     swap = build_database_description_header_ospf(buffer, local_ip, dest_ip, 0x07);
     packet_len = sizeof(struct ether_header) + sizeof(struct ip) + swap;
   } else {
-    dest_ip = "224.0.0.5";  
+    dest_ip = "224.0.0.5";
     swap = build_hello_header_ospf(buffer, local_ip, dest_ip);
     packet_len = sizeof(struct ether_header) + sizeof(struct ip) + swap;
   }
@@ -41,13 +41,13 @@ int build(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *loca
   ip_header->ip_off = 0;
   ip_header->ip_ttl = 1;
   ip_header->ip_p = PROTO_OSPF;
-  ip_header->ip_sum = 0X0000; 
+  ip_header->ip_sum = 0X0000;
   ip_header->ip_src.s_addr = inet_addr(local_ip);
   ip_header->ip_dst.s_addr = inet_addr(dest_ip);
   ip_header->ip_sum = in_cksum((unsigned short*)ip_header, sizeof(struct ip));
-  
 
-  
+
+
   return packet_len;
 }
 
