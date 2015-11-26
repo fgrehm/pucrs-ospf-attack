@@ -33,6 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#include <net/ethernet.h>            
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -70,4 +71,24 @@ unsigned short in_cksum(unsigned short *addr,int len)
         sum += (sum >> 16);                     /* add carry */
         answer = ~sum;                          /* truncate to 16 bits */
         return(answer);
+}
+ 
+__u16 fletcher16( __u8 const *data, __u16 bytes )
+{
+        __u16 sum1 = 0xff, sum2 = 0xff;
+        __u16 tlen; // size_t
+ 
+        while (bytes) {
+                tlen = bytes >= 20 ? 20 : bytes;
+                bytes -= tlen;
+                do {
+                        sum2 += sum1 += *data++;
+                } while (--tlen);
+                sum1 = (sum1 & 0xff) + (sum1 >> 8);
+                sum2 = (sum2 & 0xff) + (sum2 >> 8);
+        }
+        /* Second reduction step to reduce sums to 8 bits */
+        sum1 = (sum1 & 0xff) + (sum1 >> 8);
+        sum2 = (sum2 & 0xff) + (sum2 >> 8);
+        return sum2 << 8 | sum1;
 }
