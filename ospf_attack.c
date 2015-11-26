@@ -162,6 +162,8 @@ int ospf_write_ls_update(unsigned char *buffer, char *local_ip) {
   na_header_ospf->na_rid[1] = inet_addr("100.0.0.1");                       /* ID of second Attached Routers  */
   length += sizeof(struct ospf_na);
 
+  lss_header_ospf->lss_cksum = fletcher_checksum((short unsigned int *)buffer + sizeof(struct ospf_header) + 6, sizeof(struct ospf_lss) + sizeof(struct ospf_na), 15);
+
   return length;
 }
 

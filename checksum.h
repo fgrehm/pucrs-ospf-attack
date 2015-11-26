@@ -6,6 +6,6 @@
 #define CHECKSUM_HEADER
 
 unsigned short in_cksum(unsigned short *addr,int len);
-__u16 fletcher16( __u8 const *data, __u16 bytes );
+__u16 fletcher_checksum(__u8 *message, int mlen, int offset);
 
 #endif
