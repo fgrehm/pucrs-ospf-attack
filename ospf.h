@@ -66,4 +66,39 @@ struct ospf_lls {
   __u32 data[3];
 };
 
+/* Link State Update Packet Format */
+struct	ospf_lsu {
+  __u32 lsu_nads; /* # Advertisments This Packet */
+};
+
+/* OSPF Link State Summary */
+
+struct	ospf_lss {
+	__u16	lss_age;	/* Time (secs) Since Originated	*/
+	__u8	lss_opts;	/* Options Supported		*/
+	__u8	lss_type;	/* LST_* below			*/
+	__u32	lss_lsid;	/* Link State Identifier	*/
+	__u32	lss_rid;	/* Advertising Router Identifier*/
+	__u32	lss_seq;	/* Link State Adv. Sequence #	*/
+	__u16	lss_cksum;	/* Fletcher Checksum of LSA	*/
+	__u16	lss_len;	/* Length of Advertisement	*/
+};
+
+#define LSS_LENGTH	0x2000
+#define	LSSHDRLEN	20
+#define LSS_AGE 	0x0500			/* Take default age from wireshark message */
+#define LSS_OPTIONS 0X22			/* Take default age from wireshark message */
+#define LSST_ROUTE	0X02			/* Link to a router :: Take default LS Type from wireshark message */
+#define LSST_NET	0X02			/* Link to a network */
+#define LSST_SUM_IP	0X03			/* When area are used, summary information generaled about a network */
+#define LSST_SUMLSA	0X04			/* When area are used, summary information about a link to an AS boundary router*/
+#define LSST_AS_EXT	0X05			/* An external link outside the autonomous system */
+#define LSS_SEQ_NUM	0x80000001		/* Take default sequence number from wireshark message */
+
+/* Network Links Advertisement */
+struct	ospf_na {
+	__u32 na_mask;	/* Network Mask			*/
+	__u32 na_rid[2];	/* IDs of All Attached Routers	*/
+};
+
 #endif

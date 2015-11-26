@@ -8,5 +8,6 @@
 
 int attack_write_hello(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, char *router_ip);
 int attack_write_db_description(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, char *router_ip);
+int attack_write_ls_update(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, char *router_ip);
 
 #endif
