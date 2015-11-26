@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
   memcpy(&(destAddr.sll_addr), dest_mac, MAC_ADDR_LEN);
 
   /* 0x01 para HELLO e 0x02 para DB description */
-  int packet_len = packet_len = build(buffer, local_mac, local_ip, 0x01);
+  int packet_len = build(buffer, local_mac, local_ip, 0x01);
   if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
     printf("ERROR! sendto() \n");
     exit(1);
