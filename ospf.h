@@ -1,8 +1,23 @@
-#define	AUTHLEN		8		/* 64-bit Password		*/
+#ifndef OSPF_H
+#define OSPF_H
 
-/* OSPF packet format */
+#define OSPF_VERSION 2
 
-struct ospf {
+/* OSPF Packet Types */
+
+#define	OSPF_HELLO_T    1 /* Hello packet               */
+#define	OSPF_DATADESC_T 2 /* Database Description       */
+#define	OSPF_LSREQ_T    3 /* Link State Request         */
+#define	OSPF_LSUPDATE_T 4 /* Link State Update          */
+#define	OSPF_LSACK_T    5 /* Link State Acknowledgement	*/
+
+/* OSPF Authentication Types */
+
+#define	AU_NONE		0		/* No Authentication		*/
+#define	AU_PASSWD	1		/* Simple Password		*/
+
+/* OSPF header format */
+struct ospf_header {
 	__u8	ospf_version;	/* Version Number		*/
 	__u8	ospf_type;	/* Packet Type			*/
 	__u16	ospf_len;	/* Packet Length		*/
@@ -13,42 +28,23 @@ struct ospf {
 	__u64	ospf_auth; /* Authentication Field	*/
 };
 
-
-#define OSPF_VERSION 2		/**/
-#define	MINHDRLEN	24		/* OSPF base header length	*/
-#define AUTH_NONE	0X0000000000000000 /* if don't authentication */
-
-/* OSPF Packet Types */
-
-#define	T_HELLO		1		/* Hello packet			*/
-#define	T_DATADESC	2		/* Database Description		*/
-#define	T_LSREQ		3		/* Link State Request		*/
-#define	T_LSUPDATE	4		/* Link State Update		*/
-#define	T_LSACK		5		/* Link State Acknowledgement	*/
-
-/* OSPF Authentication Types */
-
-#define	AU_NONE		0		/* No Authentication		*/
-#define	AU_PASSWD	1		/* Simple Password		*/
-
 /* OSPF Hello Packet */
 
 struct	ospf_hello {
-	__u32	oh_netmask;	/* Network Mask			*/
-	__u16	oh_hintv;	/* Hello Interval (seconds)	*/
-	__u8	oh_opts;	/* Options			*/
-	__u8	oh_prio;	/* Sender's Router Priority	*/
-	__u32	oh_rdintv;	/* Seconds Before Declare Dead	*/
-	__u32	oh_drid;	/* Designated Router ID		*/
-	__u32	oh_brid;	/* Backup Designated Router ID	*/
-	__u32	oh_neighbor;	/* Living Neighbors		*/
+  __u32	oh_netmask; /* Network Mask                */
+  __u16	oh_hintv;   /* Hello Interval (seconds)    */
+  __u8	oh_opts;    /* Options                     */
+  __u8	oh_prio;    /* Sender's Router Priority	   */
+  __u32	oh_rdintv;  /* Seconds Before Declare Dead */
+  __u32	oh_drid;    /* Designated Router ID        */
+  __u32	oh_brid;    /* Backup Designated Router ID */
+  __u32	oh_neighbor; /* Living Neighbors           */
 };
 
-#define	HELLO_INTERVAL	0x0a00				/* 10 seconts defined */
-#define	HELLO_OPTIONS	0X12			/* Take default options from wireshark message */
-#define	HELLO_PRIORITY	1				/* Take default priority from wireshark message */
-#define	HELLO_DEAD_INTERVAL	0X28000000		/* Take default dead interval from wireshark message */
-#define	MINHELLOLEN	(MINHDRLEN + 20)
+#define	OSPF_HELLO_INTERVAL	0x0a00				/* 10 seconts defined */
+#define	OSPF_HELLO_OPTIONS	0X12			/* Take default options from wireshark message */
+#define	OSPF_HELLO_PRIORITY	1				/* Take default priority from wireshark message */
+// #define	OSPF_HELLO_DEAD_INTERVAL	0X28000000		/* Take default dead interval from wireshark message */
 
 /* OSPF Database Description Packet */
 
@@ -64,85 +60,10 @@ struct	ospf_dd {
 #define	DDC_MORE	0x02		/* More to follow		*/
 #define	DDC_MSTR	0x01		/* This Router is Master	*/
 
-/* OSPF Link State Request Packet */
-
-struct	ospf_lsr {
-	__u32	lsr_type;	/* Link State Type		*/
-	__u32	lsr_lsid;	/* Link State Identifier	*/
-	__u32	lsr_rid;	/* Advertising Router		*/
-};
-
-/* OSPF Link State Summary */
-
-struct	ospf_lss {
-	__u16	lss_age;	/* Time (secs) Since Originated	*/
-	__u8	lss_opts;	/* Options Supported		*/
-	__u8	lss_type;	/* LST_* below			*/
-	__u32	lss_lsid;	/* Link State Identifier	*/
-	__u32	lss_rid;	/* Advertising Router Identifier*/
-	__u32	lss_seq;	/* Link State Adv. Sequence #	*/
-	__u16	lss_cksum;	/* Fletcher Checksum of LSA	*/
-	__u16	lss_len;	/* Length of Advertisement	*/
-};
-
-#define LSS_LENGTH	0x2000
-#define	LSSHDRLEN	20
-#define LSS_AGE 	0x0500			/* Take default age from wireshark message */
-#define LSS_OPTIONS 0X22			/* Take default age from wireshark message */
-#define LSST_ROUTE	0X02			/* Link to a router :: Take default LS Type from wireshark message */
-#define LSST_NET	0X02			/* Link to a network */
-#define LSST_SUM_IP	0X03			/* When area are used, summary information generaled about a network */
-#define LSST_SUMLSA	0X04			/* When area are used, summary information about a link to an AS boundary router*/
-#define LSST_AS_EXT	0X05			/* An external link outside the autonomous system */
-#define LSS_SEQ_NUM	0x80000001		/* Take default sequence number from wireshark message */
-
-/* Link State Advertisement Types */
-
-#define	LST_RLINK	1				/* Router Link			*/
-#define	LST_NLINK	2		/* Network Link			*/
-#define	LST_SLINK	3		/* IP Network Summary Link	*/
-#define	LST_BRSLINK	4		/* AS Border Router Summary	*/
-#define	LST_EXTERN	5		/* AS External Link		*/
-
-/* Link State Advertisement (min) Lengths */
-
-#define	LSA_RLEN	(LSSHDRLEN + 4)
-#define	LSA_NLEN	(LSSHDRLEN + 4)
-
-#define	LSA_ISEQ	0x80000001
-
-/* OSPF Link State Advertisement */
-
-#define	MAXLSDLEN	64	/* Max LS Data Len (configurable)	*/
-
-struct ospf_lsa {
-	struct ospf_lss	lsa_lss;	/* Link State Adv. Header	*/
-	char		lsa_data[MAXLSDLEN]; /* Link-Type Dependent Data*/
-};
-
-#define	MINRLLEN	12
-
-#define	RAO_ABR		0x01		/* Router is Area Border Router	*/
-#define	RAO_EXTERN	0x02		/* Router is AS Boundary Router	*/
-
-#define	RAT_PT2PT	1		/* Point-Point Connection	*/
-#define	RAT_TRANSIT	2		/* Connection to Transit Network*/
-#define	RAT_STUB	3		/* Connection to Stub Network	*/
-#define	RAT_VIRTUAL	4		/* Virtual Link			*/
-
-/* Network Links Advertisement */
-struct	ospf_na {
-	__u32 na_mask;	/* Network Mask			*/
-	__u32 na_rid[2];	/* IDs of All Attached Routers	*/
-};
-
-/* Link State Update Packet Format */
-struct	ospf_lsu {
-	__u32	lsu_nads;	/* # Advertisments This Packet	*/
-};
-
-#define	MINLSULEN	(MINHDRLEN + 4)	/* Base LSU Length		*/
+/* OSPF LSS */
 
 struct ospf_lls {
   __u32 data[3];
 };
+
+#endif
