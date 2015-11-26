@@ -1,10 +1,8 @@
 #ifndef OSPF_ATTACK_H
 #define OSPF_ATTACK_H
 
-#define ETHERTYPE_LEN 2
-#define IP_ADDR_LEN 4
 #define MAC_ADDR_LEN 6
-#define BUFFER_LEN 1518
+#define BUFFER_LEN 1500
 
 #define PROTO_OSPF 89
 

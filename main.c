@@ -20,8 +20,8 @@ unsigned char *parse_ip_addr(char *ip_str);
 extern int errno;
 
 int main(int argc, char *argv[]) {
-  if (argc != 5) {
-    printf("Usage: ospf-attack INTERFACE INTERFACE_NUMBER LOCAL_MAC_ADDR LOCAL_IP_ADDR DESTINATION_MAC_ADDR DESTINATION_IP_ADDR\n\n");
+  if (argc != 4) {
+    printf("Usage: ospf-attack INTERFACE_NUMBER LOCAL_MAC_ADDR LOCAL_IP_ADDR\n\n");
     exit(1);
   }
 
@@ -30,23 +30,15 @@ int main(int argc, char *argv[]) {
   struct sockaddr_ll destAddr;
 
   // Set up mac / IPv4 addresses for the machines that will receive the packets
-  char *iface_name      = argv[1];
-  char *iface_index_str = argv[2]; // TODO: Usar para ler pacotes
-  char *local_mac_str   = argv[3];
-  char *local_ip        = argv[4];
-  char *dest_mac_str    = argv[5];
-  //APAGAR ?pedro
-  char *dest_ip         = "224.0.0.5"; //argv[6];
+  char *iface_index_str = argv[1]; // TODO: Usar para ler pacotes
+  char *local_mac_str   = argv[2];
+  char *local_ip        = argv[3];
 
   // Convert input to bytes
   unsigned char *local_mac = parse_mac_addr(local_mac_str);
   //APAGAR ?pedro
   unsigned char *dest_mac  = parse_mac_addr("01:00:5e:00:00:05");
   int iface_index = atoi(iface_index_str);
-
-  // This helps us identify our requests
-  // unsigned short identifier = getpid();
-  // printf("PID: %d\n", identifier);
 
   if((sock_fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0) {
     printf("Erro na criacao do socket.\n");
@@ -60,7 +52,7 @@ int main(int argc, char *argv[]) {
   memcpy(&(destAddr.sll_addr), dest_mac, MAC_ADDR_LEN);
 
                                             /* 0x01 para HELLO e 0x02 para DB description */
-  int packet_len = packet_len = build(buffer, local_mac, local_ip, 0x01); //build_hello(buffer, local_mac, local_ip, dest_mac, dest_ip);
+  int packet_len = packet_len = build(buffer, local_mac, local_ip, 0x01);
   if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
     printf("ERROR! sendto() \n");
     exit(1);
