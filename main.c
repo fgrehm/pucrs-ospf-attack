@@ -36,8 +36,7 @@ int main(int argc, char *argv[]) {
 
   // Convert input to bytes
   unsigned char *local_mac = parse_mac_addr(local_mac_str);
-  //APAGAR ?pedro
-  unsigned char *dest_mac  = parse_mac_addr("01:00:5e:00:00:05");
+  unsigned char *dest_mac  = parse_mac_addr(IPV4_MULTICAST);
   int iface_index = atoi(iface_index_str);
 
   if((sock_fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0) {
