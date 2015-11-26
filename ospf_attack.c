@@ -18,12 +18,12 @@ int build(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *loca
     swap = build_database_description_header_ospf(buffer, local_ip, 1, 0x07);
     packet_len = sizeof(struct ether_header) + sizeof(struct ip) + swap;
   } else {
-    dest_ip = "224.0.0.5";
+    dest_ip = IPV4_MULTICAST_ADDR;
     swap = build_hello_header_ospf(buffer, local_ip, dest_ip);
     packet_len = sizeof(struct ether_header) + sizeof(struct ip) + swap;
   }
 
-  unsigned char *dest_mac  = parse_mac_addr("01:00:5e:00:00:05");
+  unsigned char *dest_mac  = parse_mac_addr(IPV4_MULTICAST_MAC);
   struct ether_header *eth_header;
   eth_header = (struct ether_header *) &buffer[0];
   memcpy(eth_header->ether_dhost, dest_mac, MAC_ADDR_LEN);
