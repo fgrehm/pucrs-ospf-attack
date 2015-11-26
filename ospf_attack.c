@@ -13,9 +13,9 @@ int build(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *loca
   // Ethernet header
   char *dest_ip;
   int packet_len, swap;
-    if(packet_type - 0x01) {
+  if(packet_type - 0x01) {
     dest_ip = "192.168.3.1";
-    swap = build_database_description_header_ospf(buffer, local_ip, dest_ip, 0x07);
+    swap = build_database_description_header_ospf(buffer, local_ip, 1, 0x07);
     packet_len = sizeof(struct ether_header) + sizeof(struct ip) + swap;
   } else {
     dest_ip = "224.0.0.5";

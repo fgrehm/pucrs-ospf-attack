@@ -74,7 +74,7 @@ int build_database_description_header_ospf(unsigned char buffer[BUFFER_LEN],
   database_description_header_ospf->dd_opts = DD_OPTIONS;                   /* Options          */
   database_description_header_ospf->dd_control = control;                   /* Control Bits (DDC_* below)   */
   /* primeiro 0x07 = master coisas para enviar e comançando, segundo 0x03 = master e tem coisas para enviar, terceiro 0x01 eu sou o master */
-  database_description_header_ospf->dd_seq = sequence_number;               /* Sequence Number      */
+  database_description_header_ospf->dd_seq = htonl(sequence_number);               /* Sequence Number      */
   int swap = build_basic_header_ospf(buffer, local_ip, 0x02);
   swap = swap + build_lls_data_block(buffer, sizeof(struct ether_header) + sizeof(struct ip) + sizeof(struct ospf) + sizeof(struct ospf_dd));
   return sizeof(struct ospf_dd) + swap;
