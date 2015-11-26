@@ -19,7 +19,7 @@ int build(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *loca
     packet_len = sizeof(struct ether_header) + sizeof(struct ip) + swap;
   } else {
     dest_ip = IPV4_MULTICAST_ADDR;
-    swap = build_hello_header_ospf(buffer, local_ip, dest_ip);
+    swap = build_hello_header_ospf(buffer, local_ip);
     packet_len = sizeof(struct ether_header) + sizeof(struct ip) + swap;
   }
 

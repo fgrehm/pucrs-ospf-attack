@@ -32,7 +32,7 @@ int build_basic_header_ospf(unsigned char buffer[BUFFER_LEN],
   basic_header_ospf->ospf_authtype = AU_NONE;                               /* Authentication Type    */
   basic_header_ospf->ospf_auth = 0;                              /* Authentication Field */
 
-  basic_header_ospf->ospf_cksum = in_cksum(buffer + sizeof(struct ether_header) + sizeof(struct ip), length);
+  basic_header_ospf->ospf_cksum = in_cksum((short unsigned int *)(buffer + sizeof(struct ether_header) + sizeof(struct ip)), length);
   return sizeof(struct ospf);
 }
 
