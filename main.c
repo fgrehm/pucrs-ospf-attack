@@ -66,13 +66,14 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
   printf("Send success (%d).\n", ret_value);
-  sleep(1);
+  //sleep(1);
                                             /* 0x01 para HELLO e 0x02 para DB description */
   packet_len = build(buffer, local_mac, local_ip, 0x02);
   if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
     printf("ERROR! sendto() \n");
     exit(1);
   }
+
   printf("Send success (%d).\n", ret_value);
 
   return 0;
