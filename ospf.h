@@ -86,8 +86,8 @@ struct	ospf_lss {
 
 #define LSS_LENGTH	0x2000
 #define	LSSHDRLEN	20
-#define LSS_AGE 	0x0500			/* Take default age from wireshark message */
-#define LSS_OPTIONS 0X22			/* Take default age from wireshark message */
+#define LSS_AGE 	3			/* Take default age from wireshark message */
+#define LSS_OPTIONS     0X22			/* Take default age from wireshark message */
 #define LSST_ROUTE	0X02			/* Link to a router :: Take default LS Type from wireshark message */
 #define LSST_NET	0X02			/* Link to a network */
 #define LSST_SUM_IP	0X03			/* When area are used, summary information generaled about a network */
