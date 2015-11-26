@@ -46,8 +46,6 @@ int build(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *loca
   ip_header->ip_dst.s_addr = inet_addr(dest_ip);
   ip_header->ip_sum = in_cksum((unsigned short*)ip_header, sizeof(struct ip));
 
-
-
   return packet_len;
 }
 
@@ -55,5 +53,6 @@ int build(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *loca
 unsigned char *parse_mac_addr(char *mac_str) {
   unsigned char *result = calloc(MAC_ADDR_LEN, sizeof(unsigned char));
   sscanf(mac_str, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx", result, result + 1, result + 2, result + 3, result + 4, result + 5);
+
   return result;
 }

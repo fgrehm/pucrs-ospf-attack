@@ -10,12 +10,12 @@
 #include "checksum.h"
 
 //?pedro                                    //verificar se tipo da variável é adequada
-int build_basic_header_ospf(unsigned char buffer[BUFFER_LEN], 
+int build_basic_header_ospf(unsigned char buffer[BUFFER_LEN],
                                     char *local_ip,
                                     //char *dest_ip,
                                     __u8 packet_type) {
 
-  // OSPF header  
+  // OSPF header
   int length = sizeof(struct ospf) + sizeof(struct ospf_hello);
   if(packet_type - 0x01) {
     length = sizeof(struct ospf) + sizeof(struct ospf_dd);
@@ -32,13 +32,13 @@ int build_basic_header_ospf(unsigned char buffer[BUFFER_LEN],
   basic_header_ospf->ospf_authtype = AU_NONE;                               /* Authentication Type    */
   basic_header_ospf->ospf_auth = 0;                              /* Authentication Field */
 
-  basic_header_ospf->ospf_cksum = in_cksum(buffer + sizeof(struct ether_header) + sizeof(struct ip), length); 
+  basic_header_ospf->ospf_cksum = in_cksum(buffer + sizeof(struct ether_header) + sizeof(struct ip), length);
   return sizeof(struct ospf);
 }
 
 
 //?pedro                                     //verificar se tipo da variável é adequada
-int build_hello_header_ospf(unsigned char buffer[BUFFER_LEN], 
+int build_hello_header_ospf(unsigned char buffer[BUFFER_LEN],
                                      char *local_ip//, char *dest_ip
                                      ) {
 
@@ -54,8 +54,8 @@ int build_hello_header_ospf(unsigned char buffer[BUFFER_LEN],
   hello_header_ospf->oh_drid = inet_addr("192.168.3.1");                         /* Designated Router ID   */
   hello_header_ospf->oh_brid = inet_addr("0.0.0.0");                        /* Backup Designated Router ID  */
   hello_header_ospf->oh_neighbor = inet_addr("192.168.3.1");                                        /* Living Neighbors   */
-  int swap; 
-  swap = build_basic_header_ospf(buffer, local_ip, 0X01); 			/* size_eth_ip, */ 
+  int swap;
+  swap = build_basic_header_ospf(buffer, local_ip, 0X01); 			/* size_eth_ip, */
   swap = swap + build_lls_data_block(buffer, sizeof(struct ether_header) + sizeof(struct ip) + sizeof(struct ospf) + sizeof(struct ospf_hello));
   return sizeof(struct ospf_hello) + swap;
 }
@@ -90,7 +90,7 @@ int build_lls_data_block(unsigned char buffer[BUFFER_LEN], int pos){
 }
 
 //?pedro                                              //verificar se tipo da variável é adequada
-int build_ls_update_header_ospf(unsigned char buffer[BUFFER_LEN], 
+int build_ls_update_header_ospf(unsigned char buffer[BUFFER_LEN],
                                     char *local_ip) {
   // OSPF Link State Update
   int length = sizeof(struct ether_header) + sizeof(struct ip) + sizeof(struct ospf);
