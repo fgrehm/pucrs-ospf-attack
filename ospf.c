@@ -18,6 +18,7 @@ int ospf_write_header(unsigned char *buffer, char *local_ip, int ospf_len, unsig
 int ospf_write_hello(unsigned char *buffer, char *router_ip);
 int ospf_write_lss_data_block(unsigned char *buffer);
 int ospf_write_db_description(unsigned char* buffer, unsigned long sequence_number, __u8 control);
+int ospf_write_ls_update(unsigned char *buffer, char *local_ip, char *router_ip, __u32 seq_number);
 
 // Writes an OSPF Hello Packet on the buffer and returns the total amount of
 // bytes that should be sent over the network
@@ -45,23 +46,42 @@ int ospf_multicast_hello(unsigned char *buffer, unsigned char *local_mac, char *
 // Writes an OSPF Hello Packet on the buffer and returns the total amount of
 // bytes that should be sent over the network
 int ospf_db_description(unsigned char *buffer, unsigned char *local_mac, char *local_ip, unsigned char* dest_mac, char *router_ip, __u32 sequence_number, __u8 control) {
-   // Ethernet header
-   int ether_header_len = write_ipv4_ethernet_header(buffer, local_mac, dest_mac);
+  // Ethernet header
+  int ether_header_len = write_ipv4_ethernet_header(buffer, local_mac, dest_mac);
 
-   // Position on the buffer where we should begin writing OSPF data
-   int ospf_packet_offset = ether_header_len + sizeof(struct ip);
-   unsigned char *ospf_buffer_ptr = buffer + ospf_packet_offset;
+  // Position on the buffer where we should begin writing OSPF data
+  int ospf_packet_offset = ether_header_len + sizeof(struct ip);
+  unsigned char *ospf_buffer_ptr = buffer + ospf_packet_offset;
 
-   // OSPF sections of the packet
-   int ospf_len = 0;
-   ospf_len += ospf_write_db_description(ospf_buffer_ptr + sizeof(struct ospf_header), sequence_number, control);
-   ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, sizeof(struct ospf_dd), OSPF_DATADESC_T);
-   ospf_len += ospf_write_lss_data_block(ospf_buffer_ptr + ospf_len);
+  // OSPF sections of the packet
+  int ospf_len = 0;
+  ospf_len += ospf_write_db_description(ospf_buffer_ptr + sizeof(struct ospf_header), sequence_number, control);
+  ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, sizeof(struct ospf_dd), OSPF_DATADESC_T);
+  ospf_len += ospf_write_lss_data_block(ospf_buffer_ptr + ospf_len);
 
-   // IP header
-   int ip_header_len = write_ipv4_header(buffer + ether_header_len, local_ip, router_ip, ospf_len);
+  // IP header
+  int ip_header_len = write_ipv4_header(buffer + ether_header_len, local_ip, router_ip, ospf_len);
 
-   return ether_header_len + ip_header_len + ospf_len;
+  return ether_header_len + ip_header_len + ospf_len;
+}
+
+int ospf_ls_update(unsigned char *buffer, unsigned char *local_mac, char *local_ip, unsigned char* dest_mac, char *dest_ip, __u32 sequence_number, __u8 lss_type, char *router_ip) {
+  // Ethernet header
+  int ether_header_len = write_ipv4_ethernet_header(buffer, local_mac, dest_mac);
+
+  // Position on the buffer where we should begin writing OSPF data
+  int ospf_packet_offset = ether_header_len + sizeof(struct ip);
+  unsigned char *ospf_buffer_ptr = buffer + ospf_packet_offset;
+
+  // OSPF sections of the packet
+  int ospf_len = 0;
+  ospf_len += ospf_write_ls_update(ospf_buffer_ptr + sizeof(struct ospf_header), local_ip, router_ip, sequence_number);
+  ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, ospf_len, OSPF_LSUPDATE_T);
+
+  // IP header
+  int ip_header_len = write_ipv4_header(buffer + ether_header_len, local_ip, dest_ip, ospf_len);
+
+  return ether_header_len + ip_header_len + ospf_len;
 }
 
 int ospf_write_header(unsigned char *buffer, char *local_ip, int ospf_data_len, unsigned char packet_type) {
@@ -115,55 +135,33 @@ int ospf_write_lss_data_block(unsigned char *buffer) {
   return sizeof(struct ospf_lls);
 }
 
+int ospf_write_ls_update(unsigned char *buffer, char *local_ip, char *router_ip, __u32 seq_number) {
+  int length = 0;
+  // OSPF Link State Update
+  struct ospf_lsu *lsu_header_ospf = (struct ospf_lsu *) buffer;
+  lsu_header_ospf->lsu_nads = htonl(1); /* # Advertisments This Packet  */
+  length += sizeof(struct ospf_lsu);
 
-// int attack_write_ls_update(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, char *router_ip) {
-//   // Ethernet header
-//   unsigned char *dest_mac = parse_mac_addr(ROUTER_MAC);
-//   int ether_header_len = write_ipv4_ethernet_header(buffer, local_mac, dest_mac);
-//
-//   // Position on the buffer where we should begin writing OSPF data
-//   int ospf_packet_offset = ether_header_len + sizeof(struct ip);
-//   unsigned char *ospf_buffer_ptr = buffer + ospf_packet_offset;
-//
-//   // OSPF sections of the packet
-//   int ospf_len = 0;
-//   ospf_len += ospf_write_ls_update(ospf_buffer_ptr + sizeof(struct ospf_header), local_ip, router_ip);
-//   ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, ospf_len, OSPF_LSUPDATE_T);
-//
-//   // IP header
-//   int ip_header_len = write_ipv4_header(buffer + ether_header_len, local_ip, router_ip, ospf_len);
-//
-//   return ether_header_len + ip_header_len + ospf_len;
-// }
-//
-// int ospf_write_ls_update(unsigned char *buffer, char *local_ip, char *router_ip) {
-//   int length = 0;
-//   // OSPF Link State Update
-//   struct ospf_lsu *lsu_header_ospf = (struct ospf_lsu *) buffer;
-//   lsu_header_ospf->lsu_nads = htonl(1); /* # Advertisments This Packet  */
-//   length += sizeof(struct ospf_lsu);
-//
-//   // OSPF link state summary header
-//   struct ospf_lss *lss_header_ospf = (struct ospf_lss *) (buffer + length);
-//   lss_header_ospf->lss_age = htons(LSS_AGE);                                /* Time (secs) Since Originated */
-//   lss_header_ospf->lss_opts = LSS_OPTIONS;                                  /* Options Supported */
-//   lss_header_ospf->lss_type = LSST_ROUTE;                                   /* LST_* below ?pedro */
-//   lss_header_ospf->lss_lsid = inet_addr(local_ip);                           /* Link State Identifier */
-//   lss_header_ospf->lss_rid = inet_addr(local_ip);                           /* Advertising Router Identifier ?pedro I think would was THE PHANTOM ROUTER*/
-//   lss_header_ospf->lss_seq = LSS_SEQ_NUM;                                   /* Link State Adv. Sequence #   */
-//   lss_header_ospf->lss_cksum = 0x0000;                                      /* Fletcher Checksum of LSA */
-//   lss_header_ospf->lss_len = LSS_LENGTH;                                    /* Length of Advertisement ?pedro I don't know, because in wireshark a header has 3 LSS and values not equal*/
-//   length += sizeof(struct ospf_lss);
-//
-//   // OSPF Network Links Advertisement
-//   struct  ospf_na *na_header_ospf = (struct ospf_na *) (buffer + length);
-//   na_header_ospf->na_mask = inet_addr("255.255.255.0");                   /* Network Mask     */
-//   na_header_ospf->na_rid[0] = inet_addr(local_ip);                       /* ID of first  Attached Routers  */
-//   na_header_ospf->na_rid[1] = inet_addr(router_ip);                       /* ID of second Attached Routers  */
-//   length += sizeof(struct ospf_na);
-//
-//   // lss_header_ospf->lss_cksum = fletcher_checksum(buffer + sizeof(struct ospf_lsu) + 2, sizeof(struct ospf_na) + sizeof(struct ospf_lss) - 2);
-//   fletcher_checksum((short unsigned int *)buffer + sizeof(struct ospf_lsu) + 2, sizeof(struct ospf_na) + sizeof(struct ospf_lss) - 2, 9);
-//
-//   return length;
-// }
+  // OSPF link state summary header
+  struct ospf_lss *lss_header_ospf = (struct ospf_lss *) (buffer + length);
+  lss_header_ospf->lss_age = htons(LSS_AGE);                                          /* Time (secs) Since Originated */
+  lss_header_ospf->lss_opts = LSS_OPTIONS;                                            /* Options Supported */
+  lss_header_ospf->lss_type = LSST_ROUTE;                                             /* LST_* below ?pedro */
+  lss_header_ospf->lss_lsid = inet_addr(local_ip);                                    /* Link State Identifier */
+  lss_header_ospf->lss_rid = inet_addr(local_ip);                                     /* Advertising Router Identifier */
+  lss_header_ospf->lss_seq = seq_number;                                              /* Link State Adv. Sequence #   */
+  lss_header_ospf->lss_cksum = 0x0000;                                                /* Fletcher Checksum of LSA */
+  lss_header_ospf->lss_len = htons(sizeof(struct ospf_lss) + sizeof(struct ospf_na)); /* Length of Advertisement */
+  length += sizeof(struct ospf_lss);
+
+  // OSPF Network Links Advertisement
+  struct  ospf_na *na_header_ospf = (struct ospf_na *) (buffer + length);
+  na_header_ospf->na_mask = inet_addr("255.255.255.0"); /* Network Mask     */
+  na_header_ospf->na_rid[0] = inet_addr(local_ip);      /* ID of first  Attached Routers  */
+  na_header_ospf->na_rid[1] = inet_addr(router_ip);     /* ID of second Attached Routers  */
+  length += sizeof(struct ospf_na);
+
+  lss_header_ospf->lss_cksum = fletcher_checksum(buffer + sizeof(struct ospf_lsu) + 2, sizeof(struct ospf_lss) + sizeof(struct ospf_na) - 2);
+
+  return length;
+}

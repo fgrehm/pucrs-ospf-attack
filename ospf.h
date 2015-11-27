@@ -3,6 +3,7 @@
 
 int ospf_multicast_hello(unsigned char *buffer, unsigned char *local_mac, char *local_ip, char *router_ip);
 int ospf_db_description(unsigned char *buffer, unsigned char *local_mac, char *local_ip, unsigned char* dest_mac, char *router_ip, __u32 sequence_number, __u8 control);
+int ospf_ls_update(unsigned char *buffer, unsigned char *local_mac, char *local_ip, unsigned char* dest_mac, char *dest_ip, __u32 sequence_number, __u8 lss_type, char *router_ip);
 
 #define OSPF_VERSION 2
 
