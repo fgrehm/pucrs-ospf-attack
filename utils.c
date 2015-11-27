@@ -3,11 +3,54 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <net/ethernet.h>
+#include <net/if.h>
 #include <netinet/ip.h>
+#include <netpacket/packet.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 
 #include "checksum.h"
 #include "utils.h"
 #include "ospf_attack.h"
+
+int create_socket(char *iface_name) {
+  int sock_fd;
+  // Creates the raw socket to send packets
+  if((sock_fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0) {
+    die("Erro na criacao do socket.\n");
+  }
+
+  // Set interface to promiscuous mode
+  struct ifreq ifr;
+  strcpy(ifr.ifr_name, iface_name);
+  if(ioctl(sock_fd, SIOCGIFINDEX, &ifr) < 0) {
+    die("ioctl error!");
+  }
+  ioctl(sock_fd, SIOCGIFFLAGS, &ifr);
+  ifr.ifr_flags |= IFF_PROMISC;
+  ioctl(sock_fd, SIOCSIFFLAGS, &ifr);
+
+  struct timeval tv;
+  tv.tv_sec = MAX_WAIT_SEC;
+  tv.tv_usec = 0;
+  setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval));
+
+  return sock_fd;
+}
+
+int send_packet(int sock_fd, unsigned char *dest_mac, unsigned char *buffer, int interface_index, int packet_size) {
+  // Identify the machine (MAC) that is going to receive the message sent.
+  struct sockaddr_ll dest_addr;
+  dest_addr.sll_family = htons(PF_PACKET);
+  dest_addr.sll_protocol = htons(ETH_P_ALL);
+  dest_addr.sll_halen = 6;
+  dest_addr.sll_ifindex = interface_index;
+  memcpy(&(dest_addr.sll_addr), dest_mac, MAC_ADDR_LEN);
+
+  // Send the actual packet
+  return sendto(sock_fd, buffer, packet_size, 0, (struct sockaddr *)&(dest_addr), sizeof(struct sockaddr_ll));
+}
 
 // Based on http://stackoverflow.com/a/3409211
 unsigned char *parse_mac_addr(char *mac_str) {
@@ -15,6 +58,11 @@ unsigned char *parse_mac_addr(char *mac_str) {
   sscanf(mac_str, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx", result, result + 1, result + 2, result + 3, result + 4, result + 5);
 
   return result;
+}
+
+void die(char *msg) {
+  printf("%s\n", msg);
+  exit(1);
 }
 
 int write_ipv4_ethernet_header(unsigned char *buffer, unsigned char *source_mac, unsigned char *dest_mac) {

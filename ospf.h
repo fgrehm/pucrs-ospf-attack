@@ -1,6 +1,9 @@
 #ifndef OSPF_H
 #define OSPF_H
 
+int ospf_multicast_hello(unsigned char *buffer, unsigned char *local_mac, char *local_ip, char *router_ip);
+int ospf_db_description(unsigned char *buffer, unsigned char *local_mac, char *local_ip, unsigned char* dest_mac, char *router_ip, __u32 sequence_number, __u8 control);
+
 #define OSPF_VERSION 2
 
 /* OSPF Packet Types */
