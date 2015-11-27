@@ -37,6 +37,7 @@ int main(int argc, char *argv[]) {
   env.local_ip    = argv[4];
 
   attack_establish_adjacency(&env);
+  attack_send_keepalive(&env);
 
   return 0;
 }

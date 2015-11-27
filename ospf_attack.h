@@ -18,5 +18,6 @@ struct attack_env {
 };
 
 void attack_establish_adjacency(struct attack_env *env);
+void attack_send_keepalive(struct attack_env *env);
 
 #endif

